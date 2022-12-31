@@ -1,4 +1,4 @@
-.PHONY: release install test build compile
+.PHONY: release install test build compile lint
 
 release: test build compile
 	rm -rf build
@@ -6,9 +6,8 @@ release: test build compile
 	cp dist build -r
 	cp backend/dist build/server -r
 	cp backend/runtime-package.json build/package.json
-	echo "node ./server" >build/run.sh
-	echo "node .\server" >build/run.bat
-	cd build && npm install
+	printf "npm install && node ./server" >build/run.sh
+	printf "npm install && node .\server" >build/run.bat
 
 install:
 	npm install
@@ -22,6 +21,9 @@ build: install
 
 compile: install
 	cd backend && npm run compile
+
+lint: install
+	npm run lint
 
 clean:
 	rm -rf build dist node_modules
