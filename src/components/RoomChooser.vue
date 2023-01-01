@@ -1,6 +1,6 @@
 <template>
   Room ID:
-  <input type="password" v-model="room" @keyup.enter="handleEnter(room)"/>
+  <input type="password" v-model="room" @keyup.enter="handleEnter(room)" />
   <button @click="handleEnter(room)">Enter</button>
 </template>
 
