@@ -179,7 +179,10 @@ app.ws("/ws", (ws, _req) => {
       room.users.splice(id, 1);
       return;
     }
-    if (room.users.length == 1) sendMessage(room.users[1 - id].ws, "status", 1);
+    if (room.users.length == 1) {
+      return;
+    }
+    sendMessage(room.users[1 - id].ws, "status", 1);
     sendMessage(room.users[1 - id].ws, "message", "对方已经退出，请刷新页面");
     room.users.forEach((target) => {
       if (target.id >= 2) {
