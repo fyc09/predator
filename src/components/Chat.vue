@@ -1,11 +1,23 @@
 <template>
   <div>
-    <input type="text" name="name" id="chat" v-model="name" />
+    <input
+      type="text"
+      name="name"
+      id="chat"
+      v-model="name"
+      @keyup.enter="handleClickChange()"
+    />
     <button @click="handleClickChange()">Submit</button>
   </div>
   You are <b>{{ info.name }}</b>
   <div>
-    <input type="text" name="chat" id="chat" v-model="message" />
+    <input
+      type="text"
+      name="chat"
+      id="chat"
+      v-model="message"
+      @keyup.enter="handleClick"
+    />
     <button @click="handleClick()">Send</button>
   </div>
   <template v-for="msg in history">
