@@ -9,3 +9,7 @@
 3. 解压 `predator-x.x.x.zip` 文件，运行 `run.bat`（Windows）或 `run.sh`（Linux/类 Unix/Mac）。
 
 4. 打开浏览器，输入 http://localhost:8000 进入即可。
+
+## 特别感谢
+
+**黄宇轩**: 提供大量有用建议。
