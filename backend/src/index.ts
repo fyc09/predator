@@ -1,21 +1,10 @@
 import express from "express";
 import expressWs from "express-ws";
+import { updateReturn } from "typescript";
 import ws from "ws";
-import {
-  copyGame,
-  Game,
-  GREEN,
-  handleRequest,
-  initGame,
-  PUBLIC,
-  RED,
-  Turn,
-} from "./core.js";
+import { copyGame, handleRequest, initGame } from "./core.js";
 import { renderGame } from "./renderer.js";
-
-type MessageType = "status" | "data" | "message" | "chat" | "info";
-type User = { id: number; ws: ws; name: string };
-type Room = { game: Game; users: User[]; idCount: number; currentTurn: Turn };
+import { Game, PUBLIC, GREEN, RED, MessageType, Room, User } from "./types.js";
 
 const appBase = express();
 const app = expressWs(appBase).app;
@@ -35,6 +24,33 @@ function updateNames(room: Room) {
   let names = room.users.map((user) => user.name);
   room.users.forEach((target) => {
     sendMessage(target.ws, "info", { names: names });
+  });
+}
+
+function updateData(room: Room) {
+  let publicBoard = renderGame(room.game, PUBLIC, room.currentTurn);
+  room.users.forEach((target) => {
+    if (target.id >= 2) {
+      sendMessage(target.ws, "data", publicBoard);
+    } else if (target.id == 1) {
+      sendMessage(
+        target.ws,
+        "data",
+        renderGame(room.game, GREEN, room.currentTurn)
+      );
+    } else if (target.id == 0) {
+      sendMessage(
+        target.ws,
+        "data",
+        renderGame(room.game, RED, room.currentTurn)
+      );
+    }
+  });
+}
+
+function updateTurn(room: Room) {
+  room.users.forEach((target) => {
+    sendMessage(target.ws, "info", { currentTurn: room.currentTurn });
   });
 }
 
@@ -76,7 +92,11 @@ app.ws("/ws", (ws, _req) => {
             "data",
             renderGame(room.game, PUBLIC, room.currentTurn)
           );
-          sendMessage(ws, "info", { name: user.name });
+          sendMessage(ws, "info", {
+            name: user.name,
+            currentTurn: room.currentTurn,
+            id,
+          });
           sendMessage(ws, "status", 2);
 
           updateNames(room);
@@ -93,14 +113,22 @@ app.ws("/ws", (ws, _req) => {
           return;
         }
 
-        sendMessage(ws, "info", { name: user.name, names: ["pl1", "pl2"] });
+        updateData(room);
+
+        sendMessage(ws, "info", {
+          name: user.name,
+          names: ["pl1", "pl2"],
+          currentTurn: room.currentTurn,
+          id,
+        });
         sendMessage(ws, "status", 2);
         sendMessage(users[0].ws, "info", {
           name: users[0].name,
           names: ["pl1", "pl2"],
+          currentTurn: room.currentTurn,
+          id: 0,
         });
         sendMessage(users[0].ws, "status", 2);
-
         break;
 
       case "click":
@@ -120,6 +148,9 @@ app.ws("/ws", (ws, _req) => {
 
         room.game = result as Game;
         room.currentTurn = 5 - room.currentTurn;
+
+        updateData(room);
+        updateTurn(room);
         break;
 
       case "message":
@@ -150,25 +181,6 @@ app.ws("/ws", (ws, _req) => {
         updateNames(room);
         break;
     }
-
-    let publicBoard = renderGame(room.game, PUBLIC, room.currentTurn);
-    room.users.forEach((target) => {
-      if (target.id >= 2) {
-        sendMessage(target.ws, "data", publicBoard);
-      } else if (target.id == 1) {
-        sendMessage(
-          target.ws,
-          "data",
-          renderGame(room.game, GREEN, room.currentTurn)
-        );
-      } else if (target.id == 0) {
-        sendMessage(
-          target.ws,
-          "data",
-          renderGame(room.game, RED, room.currentTurn)
-        );
-      }
-    });
   });
 
   ws.on("close", (e) => {

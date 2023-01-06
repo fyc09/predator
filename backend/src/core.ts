@@ -1,27 +1,21 @@
-export const INIT_SCORE = 6;
-
-export type Turn = number;
-
-export const PUBLIC: Turn = 1;
-export const RED: Turn = 2;
-export const GREEN: Turn = 3;
-
-export type ErrorCode = number;
-
-export const ERR_SURROUNDED_BASE_CAMP: ErrorCode = -1;
-export const ERR_TOO_MANY_SURROUNDED: ErrorCode = -2;
-export const ERR_FROZEN: ErrorCode = -3;
-export const ERR_DISCONNECTED_FROM_BASE_CAMP: ErrorCode = -4;
-export const ERR_NO_SURROUNDED: ErrorCode = -5;
-
-export type Position = [number, number];
-const zeroPostion: Position = [-1, -1];
-
-export type Score = number;
-export type Grid = [Turn, Score];
-export type Board = Grid[][];
-export type Frozen = [Position, Position];
-export type Game = { board: Board; frozen: Frozen };
+import {
+  Game,
+  Board,
+  PUBLIC,
+  Position,
+  RED,
+  INIT_SCORE,
+  GREEN,
+  Frozen,
+  Grid,
+  Turn,
+  ErrorCode,
+  ERR_FROZEN,
+  ERR_NO_SURROUNDED,
+  ERR_SURROUNDED_BASE_CAMP,
+  ERR_TOO_MANY_SURROUNDED,
+  ZERO_POSITION,
+} from "./types";
 
 export function initGame(width: number, height: number): Game {
   let board: Board = [];
@@ -99,11 +93,11 @@ export function handleRequest(
   switch (grid[0]) {
     case PUBLIC:
       gridSet(grid, [OWN, INIT_SCORE]);
-      frozenAddPosition(frozen, zeroPostion);
+      frozenAddPosition(frozen, ZERO_POSITION);
 
       // 必须和大本营连接
       if (!isReachable(board, OWN, getCamp(board, OWN), [pos])) {
-        return ERR_DISCONNECTED_FROM_BASE_CAMP;
+        return ERR_NO_SURROUNDED;
       }
 
       getPlace = true;
@@ -178,7 +172,6 @@ export function handleRequest(
         }
 
         let NOW = board[i][j][0];
-        let NOW_OTHER = 5 - NOW;
 
         let maxAdjancentGrid = getMaxAdjacentGrids(board, [i, j]);
         // 不能被超过6个同色格子包围

@@ -1,42 +1,32 @@
+import { copyGame, handleRequest } from "./core";
 import {
-  handleRequest,
-  copyGame,
-  ERR_FROZEN,
-  ERR_TOO_MANY_SURROUNDED,
-  ERR_SURROUNDED_BASE_CAMP,
-  ERR_DISCONNECTED_FROM_BASE_CAMP,
-  ERR_NO_SURROUNDED,
-  Turn,
-  Game,
   Board,
-} from "./core";
+  COLOR_AVAILABLE,
+  COLOR_RED_FROZEN,
+  COLOR_GREEN_FROZEN,
+  COLOR_NONE,
+  COLOR_UNAVAILABLE,
+  ERR_FROZEN,
+  Game,
+  HINT_AVAILABLE,
+  HINT_NONE,
+  RenderedGame,
+  Turn,
+  COLOR_RED,
+} from "./types";
 
-export type Color = "" | "gray" | "red" | "green" | "sienna" | "goldenrod";
-const colorMapping: Color[] = ["", "gray", "red", "green"];
-export type Hint =
-  | ""
-  | "领地未与大本营连接"
-  | "领地有太多包围"
-  | "已被冻结"
-  | "包围大本营"
-  | "周围没有包围";
-export type Score = string;
-export type ColoredGrid = { color: Color; score: Score };
-export type ColoredBoard = ColoredGrid[][];
-export type RenderedGrid = { hint: Hint; board: ColoredBoard };
-export type RenderedBoard = RenderedGrid[][];
-export type RenderedGame = { origin: RenderedGrid; board: RenderedBoard };
-
-export function renderBoard(board: Board, _turn: Turn): ColoredBoard {
-  let rendered: ColoredBoard = [];
+export function renderBoard(board: Board): RenderedGame {
+  let rendered: RenderedGame = [];
   for (let i = 0; i < board.length; i++) {
     rendered.push([]);
     for (let j = 0; j < board[0].length; j++) {
       let grid = board[i][j];
 
       rendered[rendered.length - 1].push({
-        color: colorMapping[grid[0]],
-        score: grid[1].toString(),
+        color: grid[0],
+        score: grid[1],
+        hover: grid[0],
+        hint: HINT_NONE,
       });
     }
   }
@@ -48,62 +38,34 @@ export function renderGame(
   turn: Turn,
   currentTurn: Turn
 ): RenderedGame {
-  const { board, frozen } = game;
-  let renderedBoard: RenderedBoard = [];
-  let result: RenderedGame = {
-    origin: { hint: "", board: renderBoard(board, turn) },
-    board: renderedBoard,
-  };
+  let renderedGame = renderBoard(game.board);
 
-  let cache = renderBoard(board, turn);
+  let isCurrent = false;
+  if (turn == currentTurn) {
+    isCurrent = true;
+  }
 
-  for (let i = 0; i < board.length; i++) {
-    renderedBoard.push([]);
-    let row = renderedBoard[renderedBoard.length - 1];
-
-    for (let j = 0; j < board[i].length; j++) {
-      let result = handleRequest(copyGame({ board, frozen }), [i, j], turn);
-
-      let RenderedGrid: RenderedGrid = {
-        board: cache.map((val) =>
-          val.map((grid) => {
-            return { ...grid };
-          })
-        ),
-        hint: "",
-      };
-
-      if (turn == currentTurn) {
-        let grid = RenderedGrid.board[i][j];
-        switch (result) {
-          case ERR_DISCONNECTED_FROM_BASE_CAMP:
-            grid.color = "sienna";
-            RenderedGrid.hint = "领地未与大本营连接";
-            break;
-          case ERR_TOO_MANY_SURROUNDED:
-            grid.color = "sienna";
-            RenderedGrid.hint = "领地有太多包围";
-            break;
-          case ERR_FROZEN:
-            grid.color = "sienna";
-            RenderedGrid.hint = "已被冻结";
-            break;
-          case ERR_SURROUNDED_BASE_CAMP:
-            grid.color = "sienna";
-            RenderedGrid.hint = "包围大本营";
-            break;
-          case ERR_NO_SURROUNDED:
-            grid.color = "sienna";
-            RenderedGrid.hint = "周围没有包围";
-            break;
-          default:
-            grid.color = "goldenrod";
-        }
+  for (let i = 0; i < game.board.length; i++) {
+    for (let j = 0; j < game.board[0].length; j++) {
+      let result = handleRequest(copyGame(game), [i, j], currentTurn);
+      let grid = renderedGame[i][j];
+      if (result < 0) {
+        grid.hint = -result;
+        grid.hover = COLOR_UNAVAILABLE;
+      } else {
+        grid.hint = HINT_AVAILABLE;
+        grid.hover = isCurrent ? turn : COLOR_AVAILABLE;
       }
-
-      row.push(RenderedGrid);
+      if (result == ERR_FROZEN) {
+        if (grid.color == COLOR_RED) {
+          grid.color = COLOR_RED_FROZEN;
+        } else {
+          grid.color = COLOR_GREEN_FROZEN;
+        }
+        grid.hover = grid.color;
+      }
     }
   }
 
-  return result;
+  return renderedGame;
 }
