@@ -51,7 +51,7 @@ export default {
   text-align: center;
   width: 20px;
   height: 20px;
-  font-size:5pt;
+  font-size: 5pt;
   margin: 0px;
   padding: 0px;
   border: 0px;

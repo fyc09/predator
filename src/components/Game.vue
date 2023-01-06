@@ -43,7 +43,7 @@ export default {
       data = JSON.parse(data);
       switch (data.type) {
         case "status":
-          this.setHint("")
+          this.setHint("");
           this.status = data.status;
           break;
         case "message":
