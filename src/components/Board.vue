@@ -10,9 +10,7 @@ import { hints, classes } from "./constants";
         class="grid ctext"
         :class="[
           classes[
-            i == this.position[0] && j == this.position[1]
-              ? grid.hover
-              : grid.color
+            i == position[0] && j == position[1] ? grid.hover : grid.color
           ],
         ]"
         @mouseenter="handleEnter(i, j)"
