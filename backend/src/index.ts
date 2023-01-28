@@ -109,7 +109,7 @@ app.ws("/ws", (ws, _req) => {
 
         // 第一位玩家
         if (users.length == 1) {
-          sendMessage(ws, "message", "请等待");
+          sendMessage(ws, "hint", "请等待");
           return;
         }
 
@@ -195,11 +195,11 @@ app.ws("/ws", (ws, _req) => {
       return;
     }
     sendMessage(room.users[1 - id].ws, "status", 1);
-    sendMessage(room.users[1 - id].ws, "message", "对方已经退出，请刷新页面");
+    sendMessage(room.users[1 - id].ws, "hint", "对方已经退出，请刷新页面");
     room.users.forEach((target) => {
       if (target.id >= 2) {
         sendMessage(target.ws, "status", 1);
-        sendMessage(target.ws, "message", "一方已退出，请刷新页面");
+        sendMessage(target.ws, "hint", "一方已退出，请刷新页面");
       }
     });
     room.users[1 - id].ws.close();

@@ -1,3 +1,27 @@
+<script setup>
+import { ref } from "vue";
+
+const props = defineProps(["history", "info", "handleSendMessage", "handleChangeName"])
+
+const message = ref("");
+const name = ref(props.info.name);
+
+function handleClick() {
+  if (message.value == "") {
+    return;
+  }
+  props.handleSendMessage(message.value);
+  message.value = "";
+}
+
+function handleClickChange() {
+  if (name.name == "") {
+    return;
+  }
+  props.handleChangeName(name.value);
+}
+</script>
+
 <template>
   <div class="text">
     用户名：
@@ -31,33 +55,6 @@
     </div>
   </template>
 </template>
-
-<script>
-export default {
-  data() {
-    return {
-      message: "",
-      name: this.info.name,
-    };
-  },
-  props: ["history", "info", "handleSendMessage", "handleChangeName"],
-  methods: {
-    handleClick() {
-      if (this.message == "") {
-        return;
-      }
-      this.handleSendMessage(this.message);
-      this.message = "";
-    },
-    handleClickChange() {
-      if (this.name == "") {
-        return;
-      }
-      this.handleChangeName(this.name);
-    },
-  },
-};
-</script>
 
 <style scoped>
 .chat {
