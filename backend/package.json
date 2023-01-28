@@ -1,6 +1,6 @@
 {
   "name": "predator-backend",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.3",
   "description": "The backend of predator",
   "main": "src/index.js",
   "license": "SEE LICENSE IN LICENSE",

@@ -1,18 +1,30 @@
 <template>
+  <div class="text">用户列表</div>
   <div
     v-for="(name, index) in info.names"
-    :style="{
-      backgroundColor: index <= 1 ? ['red', 'green'][index] : 'gray',
-      color: 'white',
-      width: '200px',
-    }"
+    class="user ctext"
+    :class="[
+      index > 1
+        ? 'cpublic'
+        : (currentTurn == 2 + index
+            ? ['cred', 'cgreen']
+            : ['credf', 'cgreenf'])[index],
+    ]"
   >
-    {{ name }}
+    <b v-if="index == userId">{{ name }}</b>
+    <template v-else>{{ name }}</template>
   </div>
 </template>
 
 <script>
 export default {
-  props: ["info"],
+  props: ["info", "currentTurn", "userId"],
 };
 </script>
+
+<style>
+.user {
+  width: 200px;
+  padding: 3px;
+}
+</style>

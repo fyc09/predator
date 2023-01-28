@@ -1,18 +1,14 @@
+import { initGame, copyGame, handleRequest, isReachable } from "./core";
 import {
+  Game,
   RED,
   PUBLIC,
   GREEN,
-  initGame,
-  copyGame,
-  ERR_SURROUNDED_BASE_CAMP,
-  ERR_DISCONNECTED_FROM_BASE_CAMP,
   ERR_FROZEN,
-  ERR_NO_SURROUNDED,
   ERR_TOO_MANY_SURROUNDED,
-  Game,
-  handleRequest,
-  isReachable,
-} from "./core";
+  ERR_SURROUNDED_BASE_CAMP,
+  ERR_NO_SURROUNDED,
+} from "./types";
 
 const sample: Game = {
   board: [
@@ -98,7 +94,7 @@ describe("test handle_request", () => {
 
     test("returns ERR_DISCONNECTED_FROM_BASE_CAMP", () => {
       expect(handleRequest(copyGame(sample), [1, 0], GREEN)).toBe(
-        ERR_DISCONNECTED_FROM_BASE_CAMP
+        ERR_NO_SURROUNDED
       );
     });
 

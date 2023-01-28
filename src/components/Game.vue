@@ -1,23 +1,20 @@
 <script setup>
 import Board from "./Board.vue";
-import RoomChooser from "./RoomChooser.vue";
+import Home from "./Home.vue";
 import Chat from "./Chat.vue";
 import UserList from "./UserList.vue";
+import Navbar from "./Navbar.vue";
 </script>
 
 <template>
-  <RoomChooser v-if="status == 0" :handleEnter="handleEnterRoom" />
+  <Navbar :message="message" />
+  <Home v-if="status == 0" :handleEnter="handleEnterRoom" />
   <div v-if="status == 1">
-    message: <b>{{ message }}</b>
+    <!--为动效预留空间-->
   </div>
   <div v-if="status == 2" id="panel">
     <div class="pad">
-      <Board
-        :data="appearance"
-        :handle-enter="handleMounseEnter"
-        :handle-leave="handleMouseLeave"
-        :handle-down="handleMouseDown"
-      />
+      <Board :data="data" :handle-down="handleMouseDown" :set-hint="setHint" />
     </div>
     <div class="pad">
       <Chat
@@ -28,7 +25,11 @@ import UserList from "./UserList.vue";
       />
     </div>
     <div class="pad">
-      <UserList :info="info" />
+      <UserList
+        :info="info"
+        :current-turn="info.currentTurn"
+        :user-id="info.id"
+      />
     </div>
   </div>
 </template>
@@ -42,6 +43,7 @@ export default {
       data = JSON.parse(data);
       switch (data.type) {
         case "status":
+          this.setHint("");
           this.status = data.status;
           break;
         case "message":
@@ -49,7 +51,6 @@ export default {
           break;
         case "data":
           this.data = data.data;
-          this.appearance = this.data.origin;
           break;
         case "chat":
           this.chatting = [data.chat, ...this.chatting];
@@ -63,7 +64,6 @@ export default {
     return {
       status: 0,
       data: {},
-      appearance: [],
       room: "",
       message: "",
       chatting: [],
@@ -73,12 +73,6 @@ export default {
     };
   },
   methods: {
-    handleMounseEnter(x, y) {
-      this.appearance = this.data.board[x][y];
-    },
-    handleMouseLeave(x, y) {
-      this.appearance = this.data.origin;
-    },
     handleMouseDown(x, y) {
       this.ws.send(
         JSON.stringify({
@@ -112,8 +106,11 @@ export default {
         })
       );
     },
+    setHint(hint) {
+      this.message = hint;
+    },
   },
-  components: { RoomChooser, Board, Chat, UserList },
+  components: { Home, Board, Chat, UserList, Navbar },
 };
 </script>
 
