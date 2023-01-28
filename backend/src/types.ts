@@ -50,7 +50,7 @@ export type RenderedGrid = {
 };
 export type RenderedGame = RenderedGrid[][];
 
-export type MessageType = "status" | "data" | "message" | "chat" | "info";
+export type MessageType = "status" | "data" | "hint" | "chat" | "info";
 export type User = { id: number; ws: ws; name: string };
 export type Room = {
   game: Game;

@@ -1,14 +1,14 @@
+<script setup>
+
+const props = defineProps(["hint"])
+
+</script>
+
 <template>
   <div id="nav" class="container">
-    <b>系统提示：{{ message }}</b>
+    <b>系统提示：{{ hint }}</b>
   </div>
 </template>
-
-<script>
-export default {
-  props: ["message"],
-};
-</script>
 
 <style scoped>
 #nav {
