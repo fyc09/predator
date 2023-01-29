@@ -1,10 +1,9 @@
 <script setup>
 import { ref } from "vue";
 
-const props = defineProps(["handleEnter"])
+const props = defineProps(["handleEnter"]);
 
 const room = ref("");
-
 </script>
 
 <template>

@@ -1,7 +1,12 @@
 <script setup>
 import { ref } from "vue";
 
-const props = defineProps(["history", "info", "handleSendMessage", "handleChangeName"])
+const props = defineProps([
+  "history",
+  "info",
+  "handleSendMessage",
+  "handleChangeName",
+]);
 
 const message = ref("");
 const name = ref(props.info.name);

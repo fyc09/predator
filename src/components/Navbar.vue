@@ -1,7 +1,5 @@
 <script setup>
-
-const props = defineProps(["hint"])
-
+const props = defineProps(["hint"]);
 </script>
 
 <template>

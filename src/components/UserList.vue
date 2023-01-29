@@ -1,7 +1,5 @@
 <script setup>
-
-const props = defineProps(["info", "currentTurn", "userId"])
-
+const props = defineProps(["info", "currentTurn", "userId"]);
 </script>
 
 <template>

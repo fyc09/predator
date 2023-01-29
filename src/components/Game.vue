@@ -8,9 +8,9 @@ import { ref } from "vue";
 
 const status = ref(0);
 const data = ref({});
-const chatting = ref([])
+const chatting = ref([]);
 const hint = ref("");
-const info = ref({});7
+const info = ref({});
 
 function handleMouseDown(x, y) {
   ws.send(
@@ -77,7 +77,6 @@ ws.onmessage = (e) => {
       }
   }
 };
-
 </script>
 
 <template>
