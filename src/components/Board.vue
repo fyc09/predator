@@ -1,5 +1,20 @@
 <script setup>
 import { hints, classes } from "./constants";
+import { ref } from "vue";
+
+const props = defineProps(["data", "handleDown", "setHint"]);
+
+const position = ref([-1, -1]);
+
+function handleEnter(x, y) {
+  position.value = [x, y];
+  props.setHint(hints[props.data[x][y].hint]);
+}
+
+function handleLeave(x, y) {
+  props.setHint("");
+  position.value = [-1, -1];
+}
 </script>
 
 <template>
@@ -22,27 +37,6 @@ import { hints, classes } from "./constants";
     </tr>
   </table>
 </template>
-
-<script>
-export default {
-  props: ["data", "handleDown", "setHint"],
-  data() {
-    return {
-      position: [-1, -1],
-    };
-  },
-  methods: {
-    handleEnter(x, y) {
-      this.position = [x, y];
-      this.setHint(hints[this.data[x][y].hint]);
-    },
-    handleLeave(x, y) {
-      this.setHint("");
-      this.position = [-1, -1];
-    },
-  },
-};
-</script>
 
 <style scoped>
 .grid {

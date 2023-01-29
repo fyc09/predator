@@ -1,3 +1,7 @@
+<script setup>
+const props = defineProps(["info", "currentTurn", "userId"]);
+</script>
+
 <template>
   <div class="text">用户列表</div>
   <div
@@ -15,12 +19,6 @@
     <template v-else>{{ name }}</template>
   </div>
 </template>
-
-<script>
-export default {
-  props: ["info", "currentTurn", "userId"],
-};
-</script>
 
 <style>
 .user {
