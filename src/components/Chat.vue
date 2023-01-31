@@ -1,15 +1,20 @@
-<script setup>
-import { ref } from "vue";
+<script setup lang="ts">
+import { Ref, ref } from "vue";
 
-const props = defineProps([
-  "history",
-  "info",
-  "handleSendMessage",
-  "handleChangeName",
-]);
+const props = defineProps<{
+  history: {
+    identify: string;
+    message: string;
+  }[];
+  info: {
+    name: string;
+  };
+  handleSendMessage: (message: string) => void;
+  handleChangeName: (name: string) => void;
+}>();
 
-const message = ref("");
-const name = ref(props.info.name);
+const message: Ref<string> = ref("");
+const name: Ref<string> = ref(props.info.name);
 
 function handleClick() {
   if (message.value == "") {
@@ -20,7 +25,7 @@ function handleClick() {
 }
 
 function handleClickChange() {
-  if (name.name == "") {
+  if (name.value == "") {
     return;
   }
   props.handleChangeName(name.value);

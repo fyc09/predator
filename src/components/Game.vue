@@ -1,18 +1,32 @@
-<script setup>
+<script setup lang="ts">
 import Board from "./Board.vue";
 import Home from "./Home.vue";
 import Chat from "./Chat.vue";
 import UserList from "./UserList.vue";
 import Navbar from "./Navbar.vue";
-import { ref } from "vue";
+import { Ref, ref } from "vue";
+import { RenderedGame, Turn } from "../../backend/src/types";
+import { initGame } from "../../backend/src/core";
+import { renderGame } from "../../backend/src/renderer";
+import { PUBLIC, RED } from "../../backend/dist/types";
 
-const status = ref(0);
-const data = ref({});
-const chatting = ref([]);
-const hint = ref("");
-const info = ref({});
+const status: Ref<number> = ref(0);
+const data: Ref<RenderedGame> = ref(renderGame(initGame(1, 1), PUBLIC, RED));
+const chatting: Ref<
+  {
+    identify: string;
+    message: string;
+  }[]
+> = ref([]);
+const hint: Ref<string> = ref("");
+const info: Ref<{
+  name: string;
+  id: number;
+  currentTurn: Turn;
+  names: string[];
+}> = ref({ name: "", id: -1, currentTurn: RED, names: [""] });
 
-function handleMouseDown(x, y) {
+function handleMouseDown(x: number, y: number) {
   ws.send(
     JSON.stringify({
       type: "click",
@@ -22,7 +36,7 @@ function handleMouseDown(x, y) {
   );
 }
 
-function handleEnterRoom(room) {
+function handleEnterRoom(room: string) {
   ws.send(
     JSON.stringify({
       type: "apply",
@@ -31,7 +45,7 @@ function handleEnterRoom(room) {
   );
 }
 
-function handleSendMessage(message) {
+function handleSendMessage(message: string) {
   ws.send(
     JSON.stringify({
       type: "message",
@@ -40,7 +54,7 @@ function handleSendMessage(message) {
   );
 }
 
-function handleChangeName(name) {
+function handleChangeName(name: string) {
   ws.send(
     JSON.stringify({
       type: "name",
@@ -49,7 +63,7 @@ function handleChangeName(name) {
   );
 }
 
-function setHint(_hint) {
+function setHint(_hint: string) {
   hint.value = _hint;
 }
 
@@ -73,6 +87,7 @@ ws.onmessage = (e) => {
       break;
     case "info":
       for (let key in message.info) {
+        // @ts-ignore
         info.value[key] = message.info[key];
       }
   }
