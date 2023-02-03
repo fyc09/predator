@@ -8,25 +8,25 @@ import Game from "./components/Game.vue";
 
 <style>
 body {
-  background-color: #dfebeb;
+  background-color: #e8e8e8;
   padding-top: 35px;
 }
 
 .container {
-  color: #212424;
-  background-color: #cddbdb;
+  color: #2b2b2b;
+  background-color: #b5b5b5;
   border: 0px;
 }
 
 .text {
-  color: #1f2323;
+  color: #2b2b2b;
 }
 
 button,
 input {
   outline: none;
-  color: #202121;
-  background-color: #b3b8b8;
+  color: #222222;
+  background-color: #b7b7b7;
   border: 0px;
 }
 
@@ -38,19 +38,19 @@ button {
   background-color: #ffffff;
 }
 .cpublic {
-  background-color: #8e9797;
+  background-color: #9e9e9e;
 }
 .cred {
-  background-color: #ba8282;
+  background-color: #c16262;
 }
 .cgreen {
-  background-color: #72ab54;
+  background-color: #549332;
 }
 .credf {
   background-color: #e0afaf;
 }
 .cgreenf {
-  background-color: #9fc29c;
+  background-color: #79cf71;
 }
 .cavbl {
   background-color: #bb86d4;
@@ -59,6 +59,6 @@ button {
   background-color: #edde55;
 }
 .ctext {
-  color: #2a3337;
+  color: #3c3c3c;
 }
 </style>
