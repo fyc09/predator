@@ -1,17 +1,22 @@
-<script setup>
+<script setup lang="ts">
 import { hints, classes } from "./constants";
-import { ref } from "vue";
+import { Ref, ref } from "vue";
+import { Position, RenderedGame, ZERO_POSITION } from "../../backend/src/types";
 
-const props = defineProps(["data", "handleDown", "setHint"]);
+const props = defineProps<{
+  data: RenderedGame;
+  setHint: (hint: string) => void;
+  handleGridClick: (x: number, y: number) => void;
+}>();
 
-const position = ref([-1, -1]);
+const position: Ref<Position> = ref(ZERO_POSITION);
 
-function handleEnter(x, y) {
+function onEnter(x: number, y: number) {
   position.value = [x, y];
   props.setHint(hints[props.data[x][y].hint]);
 }
 
-function handleLeave(x, y) {
+function onLeave(_x: number, _y: number) {
   props.setHint("");
   position.value = [-1, -1];
 }
@@ -28,9 +33,9 @@ function handleLeave(x, y) {
             i == position[0] && j == position[1] ? grid.hover : grid.color
           ],
         ]"
-        @mouseenter="handleEnter(i, j)"
-        @mouseleave="handleLeave(i, j)"
-        @mousedown="handleDown(i, j)"
+        @mouseenter="onEnter(i, j)"
+        @mouseleave="onLeave(i, j)"
+        @mousedown="handleGridClick(i, j)"
       >
         {{ grid.score }}
       </td>

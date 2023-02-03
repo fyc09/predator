@@ -1,5 +1,7 @@
-<script setup>
-const props = defineProps(["hint"]);
+<script setup lang="ts">
+const props = defineProps<{
+  hint: string;
+}>();
 </script>
 
 <template>

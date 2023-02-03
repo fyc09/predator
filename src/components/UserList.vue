@@ -1,5 +1,11 @@
-<script setup>
-const props = defineProps(["info", "currentTurn", "userId"]);
+<script setup lang="ts">
+import { Turn } from "../../backend/src/types";
+
+const props = defineProps<{
+  info: { names: string[] };
+  currentTurn: Turn;
+  userId: number;
+}>();
 </script>
 
 <template>

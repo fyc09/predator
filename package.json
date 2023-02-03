@@ -10,6 +10,7 @@
     "lint": "prettier --write ."
   },
   "dependencies": {
+    "typescript": "^4.9.4",
     "vue": "^3.2.45"
   },
   "devDependencies": {

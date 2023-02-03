@@ -1,6 +1,5 @@
 import express from "express";
 import expressWs from "express-ws";
-import { updateReturn } from "typescript";
 import ws from "ws";
 import { copyGame, handleRequest, initGame } from "./core.js";
 import { renderGame } from "./renderer.js";
@@ -157,7 +156,7 @@ app.ws("/ws", (ws, _req) => {
         room.users.forEach((target) => {
           sendMessage(target.ws, "chat", {
             message: data.message,
-            identify: user.name,
+            name: user.name,
           });
         });
         break;
