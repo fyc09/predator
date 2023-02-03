@@ -6,17 +6,17 @@ import { Position, RenderedGame, ZERO_POSITION } from "../../backend/src/types";
 const props = defineProps<{
   data: RenderedGame;
   setHint: (hint: string) => void;
-  handleDown: (x: number, y: number) => void;
+  handleGridClick: (x: number, y: number) => void;
 }>();
 
 const position: Ref<Position> = ref(ZERO_POSITION);
 
-function handleEnter(x: number, y: number) {
+function onEnter(x: number, y: number) {
   position.value = [x, y];
   props.setHint(hints[props.data[x][y].hint]);
 }
 
-function handleLeave(_x: number, _y: number) {
+function onLeave(_x: number, _y: number) {
   props.setHint("");
   position.value = [-1, -1];
 }
@@ -33,9 +33,9 @@ function handleLeave(_x: number, _y: number) {
             i == position[0] && j == position[1] ? grid.hover : grid.color
           ],
         ]"
-        @mouseenter="handleEnter(i, j)"
-        @mouseleave="handleLeave(i, j)"
-        @mousedown="handleDown(i, j)"
+        @mouseenter="onEnter(i, j)"
+        @mouseleave="onLeave(i, j)"
+        @mousedown="handleGridClick(i, j)"
       >
         {{ grid.score }}
       </td>

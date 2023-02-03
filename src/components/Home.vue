@@ -9,14 +9,20 @@ const room: Ref<string> = ref("");
 </script>
 
 <template>
-  <div class="text">房间号:</div>
-  <input
-    type="password"
-    v-model="room"
-    @keyup.enter="handleEnter(room)"
-    class="container"
-  />
-  <button class="container" @click="handleEnter(room)">进入</button>
+  <form class="text">
+    房间号:
+    <input
+      type="text"
+      title="Room ID"
+      placeholder="Room ID"
+      v-model="room"
+      @keyup.enter.prevent="handleEnter(room)"
+      class="container"
+    />
+    <button type="button" class="container" @click.prevent="handleEnter(room)">
+      进入
+    </button>
+  </form>
 </template>
 
 <style scoped>

@@ -6,12 +6,6 @@ import Game from "./components/Game.vue";
   <Game />
 </template>
 
-<script>
-export default {
-  components: { Game },
-};
-</script>
-
 <style>
 body {
   background-color: #dfebeb;

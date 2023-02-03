@@ -5,16 +5,15 @@ import Chat from "./Chat.vue";
 import UserList from "./UserList.vue";
 import Navbar from "./Navbar.vue";
 import { Ref, ref } from "vue";
-import { RenderedGame, Turn } from "../../backend/src/types";
+import { PUBLIC, RED, RenderedGame, Turn } from "../../backend/src/types";
 import { initGame } from "../../backend/src/core";
 import { renderGame } from "../../backend/src/renderer";
-import { PUBLIC, RED } from "../../backend/dist/types";
 
 const status: Ref<number> = ref(0);
 const data: Ref<RenderedGame> = ref(renderGame(initGame(1, 1), PUBLIC, RED));
 const chatting: Ref<
   {
-    identify: string;
+    name: string;
     message: string;
   }[]
 > = ref([]);
@@ -102,14 +101,14 @@ ws.onmessage = (e) => {
   </div>
   <div v-if="status == 2" id="panel">
     <div class="pad">
-      <Board :data="data" :handle-down="handleMouseDown" :set-hint="setHint" />
+      <Board :data="data" :handle-grid-click="handleMouseDown" :set-hint="setHint" />
     </div>
     <div class="pad">
       <Chat
         :history="chatting"
         :info="info"
-        :handle-send-message="handleSendMessage"
-        :handle-change-name="handleChangeName"
+        :handle-message-send="handleSendMessage"
+        :handle-name-change="handleChangeName"
       />
     </div>
     <div class="pad">
