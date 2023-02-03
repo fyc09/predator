@@ -101,7 +101,11 @@ ws.onmessage = (e) => {
   </div>
   <div v-if="status == 2" id="panel">
     <div class="pad">
-      <Board :data="data" :handle-grid-click="handleMouseDown" :set-hint="setHint" />
+      <Board
+        :data="data"
+        :handle-grid-click="handleMouseDown"
+        :set-hint="setHint"
+      />
     </div>
     <div class="pad">
       <Chat
