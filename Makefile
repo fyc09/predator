@@ -1,6 +1,6 @@
-.PHONY: release install test build compile lint
+.PHONY: release install test cov build compile lint
 
-release: test build compile
+release: cov build compile
 	rm -rf build
 	mkdir build
 	cp dist build -r
@@ -15,6 +15,9 @@ install:
 
 test: install
 	npm run test
+
+cov: install
+	cd backend && npm run cov
 
 build: install
 	npm run build
