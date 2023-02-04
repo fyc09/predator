@@ -5,9 +5,10 @@ release: cov build compile
 	mkdir build
 	cp dist build -r
 	cp backend/dist build/server -r
-	cp backend/runtime-package.json build/package.json
-	printf "npm install && node ./server" >build/run.sh
-	printf "npm install && node .\server" >build/run.bat
+	cp backend/package.json build/package.json
+	rm build/server/*.test.js
+	printf "npm install --omit=dev && node ./server" >build/run.sh
+	printf "npm install --omit=dev && node .\server" >build/run.bat
 
 install:
 	npm install
