@@ -42,9 +42,9 @@ function onSave() {
       name="name"
       id="chat"
       v-model="name"
-      @keyup.enter.prevent="onSave()"
+      @keyup.enter.prevent="onSave"
     />
-    <button @click.prevent="onSave()">保存</button>
+    <button @click.prevent="onSave">保存</button>
   </form>
   <div class="text">
     你是 <b>{{ info.name }}。</b>
@@ -55,12 +55,10 @@ function onSave() {
       type="text"
       title="Message"
       placeholder="Message"
-      name="chat"
-      id="chat"
       v-model="message"
       @keyup.enter.prevent="onSend"
     />
-    <button @click.prevent="onSend()">发送</button>
+    <button @click.prevent="onSend">发送</button>
   </form>
   <template v-for="msg in history">
     <div class="chat text">

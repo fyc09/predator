@@ -163,8 +163,9 @@ app.ws("/ws", (ws, _req) => {
 
       case "name":
         let ok = true;
+        const name = data.name.replace(" ", "").replace("\t", "");
         room.users.forEach((target) => {
-          if (target.name == data.name) {
+          if (target.name == name) {
             ok = false;
           }
         });
