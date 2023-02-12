@@ -11,9 +11,8 @@ export const GREEN: Turn = 3;
 export type ErrorCode = number;
 
 export const ERR_SURROUNDED_BASE_CAMP: ErrorCode = -1;
-export const ERR_TOO_MANY_SURROUNDED: ErrorCode = -2;
-export const ERR_FROZEN: ErrorCode = -3;
-export const ERR_NO_SURROUNDED: ErrorCode = -4;
+export const ERR_FROZEN: ErrorCode = -2;
+export const ERR_NO_SURROUNDED: ErrorCode = -3;
 
 export type Position = [number, number];
 export const ZERO_POSITION: Position = [-1, -1];
@@ -37,10 +36,9 @@ export const COLOR_UNAVAILABLE: Color = 7;
 export type Hint = number;
 export const HINT_NONE: Hint = 0;
 export const HINT_SURROUNDED_BASE_CAMP: Hint = -ERR_SURROUNDED_BASE_CAMP;
-export const HINT_TOO_MANY_SURROUNDED: Hint = -ERR_TOO_MANY_SURROUNDED;
 export const HINT_FROZEN: Hint = -ERR_FROZEN;
 export const HINT_NO_SURROUNDED: Hint = -ERR_NO_SURROUNDED;
-export const HINT_AVAILABLE = 5;
+export const HINT_AVAILABLE = 4;
 
 export type RenderedGrid = {
   color: Color;
@@ -51,10 +49,5 @@ export type RenderedGrid = {
 export type RenderedGame = RenderedGrid[][];
 
 export type MessageType = "status" | "data" | "hint" | "chat" | "info";
-export type User = { id: number; ws: ws; name: string };
-export type Room = {
-  game: Game;
-  users: User[];
-  idCount: number;
-  currentTurn: Turn;
-};
+
+export type DataType = {type: MessageType, data: any}

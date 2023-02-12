@@ -4,7 +4,7 @@ import { Turn } from "../../backend/src/types";
 const props = defineProps<{
   info: { names: string[] };
   currentTurn: Turn;
-  userId: number;
+  userName: string;
 }>();
 </script>
 
@@ -21,7 +21,7 @@ const props = defineProps<{
             : ['credf', 'cgreenf'])[index],
     ]"
   >
-    <b v-if="index == userId">{{ name }}</b>
+    <b v-if="name == userName">{{ name }}</b>
     <template v-else>{{ name }}</template>
   </div>
 </template>

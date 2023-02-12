@@ -13,7 +13,6 @@ import {
   ERR_FROZEN,
   ERR_NO_SURROUNDED,
   ERR_SURROUNDED_BASE_CAMP,
-  ERR_TOO_MANY_SURROUNDED,
   ZERO_POSITION,
 } from "./types";
 
@@ -102,12 +101,14 @@ export function handleRequest(
 
       getPlace = true;
       break;
+
     case OWN:
       adjacentGridCount = getAdjacentGrids(board, pos, OWN).length;
       grid[1] += getIncrease(adjacentGridCount);
 
       frozenAddPosition(frozen, pos);
       break;
+
     case OTHER:
       adjacentGridCount = getAdjacentGrids(board, pos, OWN).length;
       if (!adjacentGridCount) {
@@ -129,13 +130,13 @@ export function handleRequest(
   if (losePlace) {
     for (let i = 0; i < board.length; i++) {
       for (let j = 0; j < board[i].length; j++) {
-        // 只有对方的第可能断开
+        // 只有对方的地可能断开
         if (board[i][j][0] != OTHER) {
           continue;
         }
 
         let NOW = board[i][j][0];
-        // 大本营断开连接的，改为无人区
+        // 与大本营断开连接的，改为无人区
         if (!isReachable(board, NOW, getCamp(board, NOW), [[i, j]])) {
           board[i][j] = [PUBLIC, 0];
         }
@@ -164,24 +165,6 @@ export function handleRequest(
       !isReachable(board, -GREEN, getCamp(board, GREEN), reds)
     ) {
       return ERR_SURROUNDED_BASE_CAMP;
-    }
-    for (let i = 0; i < board.length; i++) {
-      for (let j = 0; j < board[i].length; j++) {
-        if (board[i][j][0] == PUBLIC) {
-          continue;
-        }
-
-        let NOW = board[i][j][0];
-
-        let maxAdjancentGrid = getMaxAdjacentGrids(board, [i, j]);
-        // 不能被超过6个同色格子包围
-        if (
-          getAdjacentGrids(board, [i, j], RED).length > maxAdjancentGrid ||
-          getAdjacentGrids(board, [i, j], GREEN).length > maxAdjancentGrid
-        ) {
-          return ERR_TOO_MANY_SURROUNDED;
-        }
-      }
     }
   }
   return { board, frozen };
@@ -241,15 +224,6 @@ export function getIncrease(adjacentGridCount: number) {
     return 1;
   } else {
     return 2;
-  }
-}
-
-export function getMaxAdjacentGrids(board: Board, pos: Position) {
-  let adjacentGridCount = getAdjacentGrids(board, pos, 0).length;
-  if (adjacentGridCount <= 6) {
-    return 3;
-  } else {
-    return adjacentGridCount - 3;
   }
 }
 
