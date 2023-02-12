@@ -3,7 +3,7 @@ import expressWs from "express-ws";
 import ws from "ws";
 import { copyGame, handleRequest, initGame } from "./core.js";
 import { renderGame } from "./renderer.js";
-import { Game, PUBLIC, GREEN, RED, MessageType, Room, User } from "./types.js";
+import { Game, PUBLIC, GREEN, RED, Turn, MessageType } from "./types.js";
 
 const appBase = express();
 const app = expressWs(appBase).app;
@@ -13,197 +13,308 @@ app.use(express.static("./dist"));
 
 let sessions: Map<string, Room> = new Map();
 
-function sendMessage(ws: ws, type: MessageType, msg: any) {
-  let data: any = { type };
-  data[type] = msg;
-  ws.send(JSON.stringify(data));
-}
+class Room {
+  game: Game;
+  green: Player;
+  red: Player;
+  _audiences: Audience[];
+  currentTurn: Turn;
+  idCount: number;
+  roomId: string;
 
-function updateNames(room: Room) {
-  let names = room.users.map((user) => user.name);
-  room.users.forEach((target) => {
-    sendMessage(target.ws, "info", { names: names });
-  });
-}
+  constructor(roomId: string) {
+    this.game = initGame(11, 11);
+    this._audiences = [];
+    this.currentTurn = GREEN;
+    this.idCount = 0;
+    this.roomId = roomId;
+  }
 
-function updateData(room: Room) {
-  let publicBoard = renderGame(room.game, PUBLIC, room.currentTurn);
-  room.users.forEach((target) => {
-    if (target.id >= 2) {
-      sendMessage(target.ws, "data", publicBoard);
-    } else if (target.id == 1) {
-      sendMessage(
-        target.ws,
-        "data",
-        renderGame(room.game, GREEN, room.currentTurn)
-      );
-    } else if (target.id == 0) {
-      sendMessage(
-        target.ws,
-        "data",
-        renderGame(room.game, RED, room.currentTurn)
-      );
+  get audiences() {
+    return this._audiences.filter((audience) => !audience.isDeleted);
+  }
+
+  addUser(ws: ws.WebSocket, room: Room) {
+    if (this.green && this.red) {
+      return this.addAudience(ws, room);
+    } else {
+      return this.addPlayer(ws, room);
     }
-  });
+  }
+
+  addAudience(ws: ws.WebSocket, room: Room): User {
+    let id = this.idCount;
+    this.idCount++;
+
+    const user = new Audience(`au${id - 1}`, ws, room);
+    this._audiences.push(user);
+    user.sendMessage("data", renderGame(this.game, PUBLIC, this.currentTurn));
+    user.sendMessage("info", {
+      name: user.name,
+      currentTurn: this.currentTurn,
+      id,
+    });
+    user.sendMessage("status", 2);
+
+    this.updateNames();
+    return user;
+  }
+
+  addPlayer(ws: ws.WebSocket, room: Room): User {
+    let id = this.idCount;
+    this.idCount++;
+
+    if (id == 0) {
+      let red = new Player(`RED`, ws, room, RED);
+      this.red = red;
+
+      red.sendMessage("status", 1);
+      red.sendMessage("hint", "请等待");
+      return red;
+    }
+
+    let green = new Player(`GREEN`, ws, room, GREEN);
+    this.green = green;
+    let red = this.red;
+
+    this.updateData();
+
+    red.sendMessage("info", {
+      name: red.name,
+      names: [this.red.name, this.green.name],
+      currentTurn: this.currentTurn,
+      id,
+    });
+    red.sendMessage("status", 2);
+
+    green.sendMessage("info", {
+      name: green.name,
+      names: [this.red.name, this.green.name],
+      currentTurn: this.currentTurn,
+      id: 0,
+    });
+    green.sendMessage("status", 2);
+
+    return green;
+  }
+
+  updateData() {
+    let publicBoard = renderGame(this.game, PUBLIC, this.currentTurn);
+    this.audiences.forEach((target) => {
+      target.sendMessage("data", publicBoard);
+    });
+    this.green.sendMessage(
+      "data",
+      renderGame(this.game, GREEN, this.currentTurn)
+    );
+    this.red.sendMessage("data", renderGame(this.game, RED, this.currentTurn));
+  }
+
+  updateNames() {
+    let names: string[] = [this.red.name, this.green.name];
+    names.push(...this.audiences.map((user) => user.name));
+    this.audiences.forEach((target) => {
+      target.sendMessage("info", { names });
+    });
+    this.red.sendMessage("info", { names });
+    this.green.sendMessage("info", { names });
+  }
+
+  updateTurn() {
+    let currentTurn = this.currentTurn;
+    this.audiences.forEach((target) => {
+      target.sendMessage("info", { currentTurn });
+    });
+    this.red.sendMessage("info", { currentTurn });
+    this.green.sendMessage("info", { currentTurn });
+  }
+
+  updateMessages(message: string, name: string) {
+    const data = {
+      message: message,
+      name: name,
+    };
+    this.audiences.forEach((target) => {
+      target.sendMessage("chat", data);
+    });
+    this.green.sendMessage("chat", data);
+    this.red.sendMessage("chat", data);
+  }
+
+  close() {
+    const data = {
+      name: "系统",
+      message: "房间已关闭",
+    };
+    const OPEN = this.red.ws.OPEN;
+    this.audiences.forEach((target) => {
+      if (target.ws.readyState == OPEN) {
+        target.sendMessage("chat", data);
+        target.ws.close();
+      }
+    });
+    if (this.red?.ws?.readyState == OPEN) {
+      this.red.sendMessage("chat", data);
+      this.red.ws.close();
+    }
+    if (this.green?.ws?.readyState == OPEN) {
+      this.green.sendMessage("chat", data);
+      this.green.ws.close();
+    }
+    sessions.delete(this.roomId);
+  }
 }
 
-function updateTurn(room: Room) {
-  room.users.forEach((target) => {
-    sendMessage(target.ws, "info", { currentTurn: room.currentTurn });
-  });
+class User {
+  ws: ws.WebSocket;
+  name: string;
+  room: Room;
+
+  constructor(name: string, ws: ws.WebSocket, room: Room) {
+    this.name = name;
+    this.ws = ws;
+    this.room = room;
+  }
+
+  sendMessage(type: MessageType, msg: any) {
+    let data: any = { type };
+    data.data = msg;
+    this.ws.send(JSON.stringify(data));
+  }
+
+  handleClick(x: number, y: number): void {}
+
+  handleMessage(message: string) {
+    this.room.updateMessages(message, this.name);
+  }
+
+  handleName(name: string) {
+    let ok = true;
+    name = name.replace(/ \t\n\r/g, "");
+    this.room.audiences.forEach((target) => {
+      if (target.name == name) {
+        ok = false;
+      }
+    });
+    if (name.length == 0) {
+      ok = false;
+    }
+
+    if (ok) {
+      this.name = name;
+      this.sendMessage("info", { name });
+    }
+
+    this.room.updateNames();
+  }
+
+  handleExit() {}
 }
 
-app.ws("/ws", (ws, _req) => {
-  let roomid: string;
-  let room: Room;
-  let id: number;
-  let user: User;
+class Player extends User {
+  turn: Turn;
 
-  ws.on("message", (msg) => {
-    let data: any = JSON.parse(msg.toString());
+  constructor(name: string, ws: ws.WebSocket, game: Room, turn: Turn) {
+    super(name, ws, game);
+    this.turn = turn;
+  }
+
+  handleClick(x: number, y: number) {
+    if (this.turn != this.room.currentTurn) {
+      return;
+    }
+
+    let result = handleRequest(copyGame(this.room.game), [x, y], this.turn);
+
+    if (result < 0) {
+      return;
+    }
+
+    this.room.game = result as Game;
+    this.room.currentTurn = 5 - this.room.currentTurn;
+
+    this.room.updateData();
+    this.room.updateTurn();
+  }
+
+  handleExit() {
+    this.room.close();
+  }
+}
+
+class Audience extends User {
+  isDeleted: boolean;
+
+  constructor(name: string, ws: ws.WebSocket, room: Room) {
+    super(name, ws, room);
+    this.isDeleted = false;
+  }
+
+  handleExit() {
+    this.isDeleted = true;
+  }
+}
+
+class Connection {
+  id: number;
+  ws: ws.WebSocket;
+  name: string;
+  roomId: string;
+  room: Room;
+  user: User;
+
+  constructor(ws: ws.WebSocket) {
+    this.ws = ws;
+
+    ws.on("message", (message) => this.handleMessage(message));
+
+    ws.on("close", (e) => {
+      if (this.user) {
+        this.user.handleExit();
+      }
+      this.ws.close();
+    });
+  }
+
+  handleMessage(message: any) {
+    let data: any = JSON.parse(message.toString());
+
     switch (data.type) {
       case "apply":
-        roomid = data.room;
-        sendMessage(ws, "status", 1);
+        let roomId = (this.id = data.room);
 
-        if (!sessions.has(roomid)) {
-          room = {
-            game: initGame(10, 10),
-            users: [],
-            currentTurn: GREEN,
-            idCount: 0,
-          };
-          sessions.set(roomid, room);
+        if (!sessions.has(roomId)) {
+          this.room = new Room(roomId);
+          sessions.set(roomId, this.room);
         }
 
-        room = sessions.get(roomid);
+        this.room = sessions.get(roomId);
 
-        let users = room.users;
-        id = room.idCount;
-        room.idCount++;
-
-        // 作为观众
-        if (users.length >= 2) {
-          user = { id, ws, name: `au${id - 1}` };
-          room.users.push(user);
-          sendMessage(
-            ws,
-            "data",
-            renderGame(room.game, PUBLIC, room.currentTurn)
-          );
-          sendMessage(ws, "info", {
-            name: user.name,
-            currentTurn: room.currentTurn,
-            id,
-          });
-          sendMessage(ws, "status", 2);
-
-          updateNames(room);
-          break;
-        }
-
-        // 作为玩家
-        user = { id, ws, name: `pl${id + 1}` };
-        users.push(user);
-
-        // 第一位玩家
-        if (users.length == 1) {
-          sendMessage(ws, "hint", "请等待");
-          return;
-        }
-
-        updateData(room);
-
-        sendMessage(ws, "info", {
-          name: user.name,
-          names: ["pl1", "pl2"],
-          currentTurn: room.currentTurn,
-          id,
-        });
-        sendMessage(ws, "status", 2);
-        sendMessage(users[0].ws, "info", {
-          name: users[0].name,
-          names: ["pl1", "pl2"],
-          currentTurn: room.currentTurn,
-          id: 0,
-        });
-        sendMessage(users[0].ws, "status", 2);
+        this.user = this.room.addUser(this.ws, this.room);
         break;
 
       case "click":
-        if (id + 2 != room.currentTurn) {
-          return;
+        if (this.user) {
+          this.user.handleClick(data.x, data.y);
         }
-
-        let result = handleRequest(
-          copyGame(room.game),
-          [data.x, data.y],
-          id + 2
-        );
-
-        if (result < 0) {
-          return;
-        }
-
-        room.game = result as Game;
-        room.currentTurn = 5 - room.currentTurn;
-
-        updateData(room);
-        updateTurn(room);
         break;
 
       case "message":
-        room.users.forEach((target) => {
-          sendMessage(target.ws, "chat", {
-            message: data.message,
-            name: user.name,
-          });
-        });
+        if (this.user) {
+          this.user.handleMessage(data.message);
+        }
         break;
 
       case "name":
-        let ok = true;
-        room.users.forEach((target) => {
-          if (target.name == data.name) {
-            ok = false;
-          }
-        });
-        if (data.name.length == 0) {
-          ok = false;
+        if (this.user) {
+          this.user.handleName(data.name);
         }
-
-        if (ok) {
-          user.name = data.name;
-          sendMessage(ws, "info", { name: data.name });
-        }
-
-        updateNames(room);
         break;
     }
-  });
-
-  ws.on("close", (e) => {
-    if (!room) {
-      return;
-    }
-    if (id >= 2) {
-      room.users.splice(id, 1);
-      return;
-    }
-    if (room.users.length == 1) {
-      return;
-    }
-    sendMessage(room.users[1 - id].ws, "status", 1);
-    sendMessage(room.users[1 - id].ws, "hint", "对方已经退出，请刷新页面");
-    room.users.forEach((target) => {
-      if (target.id >= 2) {
-        sendMessage(target.ws, "status", 1);
-        sendMessage(target.ws, "hint", "一方已退出，请刷新页面");
-      }
-    });
-    room.users[1 - id].ws.close();
-    sessions.delete(roomid);
-  });
+  }
+}
+app.ws("/ws", (ws, _req) => {
+  new Connection(ws);
 });
 
 app.listen(8000, "localhost");

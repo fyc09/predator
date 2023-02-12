@@ -6,6 +6,10 @@ const props = defineProps<{
 }>();
 
 const room: Ref<string> = ref("");
+
+function onEnter() {
+  props.handleEnter(room.value);
+}
 </script>
 
 <template>
@@ -16,17 +20,9 @@ const room: Ref<string> = ref("");
       title="Room ID"
       placeholder="Room ID"
       v-model="room"
-      @keyup.enter.prevent="handleEnter(room)"
+      @keyup.enter.prevent="onEnter"
       class="container"
     />
-    <button type="button" class="container" @click.prevent="handleEnter(room)">
-      进入
-    </button>
+    <button @click.prevent="onEnter">进入</button>
   </form>
 </template>
-
-<style scoped>
-* {
-  color: #ecf1f1;
-}
-</style>

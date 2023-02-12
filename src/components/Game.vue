@@ -73,21 +73,21 @@ ws.onmessage = (e) => {
   switch (message.type) {
     case "status":
       setHint("");
-      status.value = message.status;
+      status.value = message.data;
       break;
     case "hint":
-      hint.value = message.hint;
+      hint.value = message.data;
       break;
     case "data":
       data.value = message.data;
       break;
     case "chat":
-      chatting.value = [message.chat, ...chatting.value];
+      chatting.value = [message.data, ...chatting.value];
       break;
     case "info":
-      for (let key in message.info) {
+      for (let key in message.data) {
         // @ts-ignore
-        info.value[key] = message.info[key];
+        info.value[key] = message.data[key];
       }
   }
 };
@@ -119,7 +119,7 @@ ws.onmessage = (e) => {
       <UserList
         :info="info"
         :current-turn="info.currentTurn"
-        :user-id="info.id"
+        :user-name="info.name"
       />
     </div>
   </div>

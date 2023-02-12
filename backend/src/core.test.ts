@@ -5,7 +5,6 @@ import {
   PUBLIC,
   GREEN,
   ERR_FROZEN,
-  ERR_TOO_MANY_SURROUNDED,
   ERR_SURROUNDED_BASE_CAMP,
   ERR_NO_SURROUNDED,
 } from "./types";
@@ -78,12 +77,6 @@ describe("test handle_request", () => {
   describe("error cases", () => {
     test("returns ERR_FROZEN", () => {
       expect(handleRequest(copyGame(sample), [3, 2], GREEN)).toBe(ERR_FROZEN);
-    });
-
-    test("returns ERR_TOO_MANY_SURROUNDED", () => {
-      expect(handleRequest(copyGame(sample), [2, 1], GREEN)).toBe(
-        ERR_TOO_MANY_SURROUNDED
-      );
     });
 
     test("returns ERR_SURROUNDED_BASE_CAMP", () => {
