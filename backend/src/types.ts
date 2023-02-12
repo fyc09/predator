@@ -50,4 +50,4 @@ export type RenderedGame = RenderedGrid[][];
 
 export type MessageType = "status" | "data" | "hint" | "chat" | "info";
 
-export type DataType = {type: MessageType, data: any}
+export type DataType = { type: MessageType; data: any };
