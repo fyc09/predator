@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "cov": "cd backend && npm run cov",
     "test": "cd backend && npm run test",
     "lint": "prettier --write ."
   },

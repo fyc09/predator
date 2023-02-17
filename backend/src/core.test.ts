@@ -7,6 +7,7 @@ import {
   ERR_FROZEN,
   ERR_SURROUNDED_BASE_CAMP,
   ERR_NO_SURROUNDED,
+  ERR_FIX_BASE_CAMP,
 } from "./types";
 
 const sample: Game = {
@@ -46,7 +47,7 @@ test("test init_game", () => {
   expect(initGame(3, 3)).toEqual({
     board: [
       [
-        [2, 6],
+        [2, 5],
         [1, 0],
         [1, 0],
       ],
@@ -58,7 +59,7 @@ test("test init_game", () => {
       [
         [1, 0],
         [1, 0],
-        [3, 6],
+        [3, 5],
       ],
     ],
     frozen: [
@@ -82,6 +83,12 @@ describe("test handle_request", () => {
     test("returns ERR_SURROUNDED_BASE_CAMP", () => {
       expect(handleRequest(copyGame(sample), [2, 3], GREEN)).toBe(
         ERR_SURROUNDED_BASE_CAMP
+      );
+    });
+
+    test("returns ERR_FIX_BASE_CAMP", () => {
+      expect(handleRequest(copyGame(sample), [3, 3], GREEN)).toBe(
+        ERR_FIX_BASE_CAMP
       );
     });
 
@@ -117,7 +124,7 @@ describe("test handle_request", () => {
 
     test("without frozen", () => {
       let exp = copyGame(sample);
-      exp.board[0][1] = [RED, 6];
+      exp.board[0][1] = [RED, 5];
       exp.frozen = [
         [-1, -1],
         [-1, -1],

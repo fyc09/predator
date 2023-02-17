@@ -18,7 +18,7 @@ test: install
 	npm run test
 
 cov: install
-	cd backend && npm run cov
+	npm run cov
 
 build: install
 	npm run build

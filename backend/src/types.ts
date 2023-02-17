@@ -13,7 +13,7 @@ export type ErrorCode = number;
 export const ERR_SURROUNDED_BASE_CAMP: ErrorCode = -1;
 export const ERR_FROZEN: ErrorCode = -2;
 export const ERR_NO_SURROUNDED: ErrorCode = -3;
-export const ERR_FIX_BASE_CAMP = -4
+export const ERR_FIX_BASE_CAMP = -4;
 
 export type Position = [number, number];
 export const ZERO_POSITION: Position = [-1, -1];
