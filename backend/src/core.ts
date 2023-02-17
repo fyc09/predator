@@ -14,6 +14,7 @@ import {
   ERR_NO_SURROUNDED,
   ERR_SURROUNDED_BASE_CAMP,
   ZERO_POSITION,
+  ERR_FIX_BASE_CAMP,
 } from "./types";
 
 export function initGame(width: number, height: number): Game {
@@ -103,6 +104,10 @@ export function handleRequest(
       break;
 
     case OWN:
+      if (getCamp(board, turn).toString() == pos.toString()) {
+        return ERR_FIX_BASE_CAMP;
+      }
+
       adjacentGridCount = getAdjacentGrids(board, pos, OWN).length;
       grid[1] += getIncrease(adjacentGridCount);
 

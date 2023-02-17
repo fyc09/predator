@@ -1,6 +1,6 @@
 import ws from "ws";
 
-export const INIT_SCORE = 6;
+export const INIT_SCORE = 5;
 
 export type Turn = number;
 
@@ -13,6 +13,7 @@ export type ErrorCode = number;
 export const ERR_SURROUNDED_BASE_CAMP: ErrorCode = -1;
 export const ERR_FROZEN: ErrorCode = -2;
 export const ERR_NO_SURROUNDED: ErrorCode = -3;
+export const ERR_FIX_BASE_CAMP = -4;
 
 export type Position = [number, number];
 export const ZERO_POSITION: Position = [-1, -1];
@@ -38,7 +39,8 @@ export const HINT_NONE: Hint = 0;
 export const HINT_SURROUNDED_BASE_CAMP: Hint = -ERR_SURROUNDED_BASE_CAMP;
 export const HINT_FROZEN: Hint = -ERR_FROZEN;
 export const HINT_NO_SURROUNDED: Hint = -ERR_NO_SURROUNDED;
-export const HINT_AVAILABLE = 4;
+export const HINT_FIX_BASE_CAMP: Hint = -ERR_FIX_BASE_CAMP;
+export const HINT_AVAILABLE = 5;
 
 export type RenderedGrid = {
   color: Color;
