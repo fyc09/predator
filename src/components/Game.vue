@@ -20,10 +20,17 @@ const chatting: Ref<
 const hint: Ref<string> = ref("");
 const info: Ref<{
   name: string;
-  id: number;
+  isPlayer: boolean;
+  isAdmin: boolean;
   currentTurn: Turn;
   names: string[];
-}> = ref({ name: "", id: -1, currentTurn: RED, names: [""] });
+}> = ref({
+  name: "",
+  isPlayer: false,
+  isAdmin: false,
+  currentTurn: RED,
+  names: [""],
+});
 
 function handleMouseDown(x: number, y: number) {
   ws.send(
@@ -58,6 +65,15 @@ function handleChangeName(name: string) {
     JSON.stringify({
       type: "name",
       name,
+    })
+  );
+}
+
+function handleHandin(id: string) {
+  ws.send(
+    JSON.stringify({
+      type: "handin",
+      id,
     })
   );
 }
@@ -117,9 +133,9 @@ ws.onmessage = (e) => {
     </div>
     <div class="pad">
       <UserList
+        :handle-handin="handleHandin"
         :info="info"
         :current-turn="info.currentTurn"
-        :user-name="info.name"
       />
     </div>
   </div>

@@ -13,7 +13,7 @@ function onEnter() {
 </script>
 
 <template>
-  <form class="text">
+  <div class="text">
     房间号:
     <input
       type="text"
@@ -24,5 +24,5 @@ function onEnter() {
       class="container"
     />
     <button @click.prevent="onEnter">进入</button>
-  </form>
+  </div>
 </template>

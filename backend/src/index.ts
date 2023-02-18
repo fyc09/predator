@@ -1,9 +1,9 @@
 import express from "express";
 import expressWs from "express-ws";
 import ws from "ws";
-import { copyGame, handleRequest, initGame } from "./core.js";
-import { renderGame } from "./renderer.js";
-import { Game, PUBLIC, GREEN, RED, Turn, MessageType } from "./types.js";
+import { copyGame, handleRequest, initGame } from "./core";
+import { renderGame } from "./renderer";
+import { Game, PUBLIC, GREEN, RED, Turn, MessageType } from "./types";
 
 const appBase = express();
 const app = expressWs(appBase).app;
@@ -34,25 +34,26 @@ class Room {
     return this._audiences.filter((audience) => !audience.isDeleted);
   }
 
-  addUser(ws: ws.WebSocket, room: Room) {
+  addUser(connection: Connection, room: Room) {
     if (this.green && this.red) {
-      return this.addAudience(ws, room);
+      return this.addAudience(connection, room);
     } else {
-      return this.addPlayer(ws, room);
+      return this.addPlayer(connection, room);
     }
   }
 
-  addAudience(ws: ws.WebSocket, room: Room): User {
+  addAudience(connection: Connection, room: Room): User {
     let id = this.idCount;
     this.idCount++;
 
-    const user = new Audience(`au${id - 1}`, ws, room);
+    const user = new Audience(`user-${id + 1}`, connection, room);
     this._audiences.push(user);
     user.sendMessage("data", renderGame(this.game, PUBLIC, this.currentTurn));
     user.sendMessage("info", {
       name: user.name,
       currentTurn: this.currentTurn,
       id,
+      isPlayer: false,
     });
     user.sendMessage("status", 2);
 
@@ -60,12 +61,12 @@ class Room {
     return user;
   }
 
-  addPlayer(ws: ws.WebSocket, room: Room): User {
+  addPlayer(connection: Connection, room: Room): User {
     let id = this.idCount;
     this.idCount++;
 
     if (id == 0) {
-      let red = new Player(`RED`, ws, room, RED);
+      let red = new Player(`user-${id + 1}`, connection, room, RED);
       this.red = red;
 
       red.sendMessage("status", 1);
@@ -73,7 +74,7 @@ class Room {
       return red;
     }
 
-    let green = new Player(`GREEN`, ws, room, GREEN);
+    let green = new Player(`user-${id + 1}`, connection, room, GREEN);
     this.green = green;
     let red = this.red;
 
@@ -84,6 +85,7 @@ class Room {
       names: [this.red.name, this.green.name],
       currentTurn: this.currentTurn,
       id,
+      isPlayer: true,
     });
     red.sendMessage("status", 2);
 
@@ -92,6 +94,7 @@ class Room {
       names: [this.red.name, this.green.name],
       currentTurn: this.currentTurn,
       id: 0,
+      isPlayer: true,
     });
     green.sendMessage("status", 2);
 
@@ -113,6 +116,7 @@ class Room {
   updateNames() {
     let names: string[] = [this.red.name, this.green.name];
     names.push(...this.audiences.map((user) => user.name));
+
     this.audiences.forEach((target) => {
       target.sendMessage("info", { names });
     });
@@ -141,45 +145,82 @@ class Room {
     this.red.sendMessage("chat", data);
   }
 
+  change(turn: Turn, audienceId: number) {
+    let player: Player;
+    let audience: Audience;
+
+    if (turn === GREEN) {
+      player = this.green;
+      audience = this.audiences[audienceId];
+      audience.connection.user = this.green = new Player(
+        audience.name,
+        audience.connection,
+        player.room,
+        GREEN
+      );
+    } else {
+      player = this.red;
+      audience = this.audiences[audienceId];
+      audience.connection.user = this.red = new Player(
+        audience.name,
+        audience.connection,
+        player.room,
+        RED
+      );
+    }
+
+    player.connection.user = this._audiences[audienceId] = new Audience(
+      player.name,
+      player.connection,
+      player.room
+    );
+
+    this.updateData();
+    this.updateNames();
+
+    player.sendMessage("info", { isPlayer: false });
+    audience.sendMessage("info", { isPlayer: true });
+  }
+
   close() {
     const data = {
       name: "系统",
       message: "房间已关闭",
     };
-    const OPEN = this.red.ws.OPEN;
+    const OPEN = this.red.connection.ws.OPEN;
     this.audiences.forEach((target) => {
-      if (target.ws.readyState == OPEN) {
+      if (target.connection.ws.readyState == OPEN) {
         target.sendMessage("chat", data);
-        target.ws.close();
+        target.connection.ws.close();
       }
     });
-    if (this.red?.ws?.readyState == OPEN) {
+    if (this.red?.connection?.ws?.readyState == OPEN) {
       this.red.sendMessage("chat", data);
-      this.red.ws.close();
+      this.red.connection.ws.close();
     }
-    if (this.green?.ws?.readyState == OPEN) {
+    if (this.green?.connection?.ws?.readyState == OPEN) {
       this.green.sendMessage("chat", data);
-      this.green.ws.close();
+      this.green.connection.ws.close();
     }
     sessions.delete(this.roomId);
   }
 }
 
 class User {
-  ws: ws.WebSocket;
+  connection: Connection;
   name: string;
   room: Room;
 
-  constructor(name: string, ws: ws.WebSocket, room: Room) {
+  constructor(name: string, connection: Connection, room: Room) {
     this.name = name;
-    this.ws = ws;
+    this.connection = connection;
     this.room = room;
   }
 
   sendMessage(type: MessageType, msg: any) {
     let data: any = { type };
     data.data = msg;
-    this.ws.send(JSON.stringify(data));
+    this.connection.ws.send(JSON.stringify(data));
   }
 
   handleClick(x: number, y: number): void {}
@@ -208,14 +249,15 @@ class User {
     this.room.updateNames();
   }
 
+  handleHandin(id: string) {}
   handleExit() {}
 }
 
 class Player extends User {
   turn: Turn;
 
-  constructor(name: string, ws: ws.WebSocket, game: Room, turn: Turn) {
-    super(name, ws, game);
+  constructor(name: string, connection: Connection, room: Room, turn: Turn) {
+    super(name, connection, room);
     this.turn = turn;
   }
 
@@ -237,6 +279,18 @@ class Player extends User {
     this.room.updateTurn();
   }
 
+  handleHandin(id: string) {
+    if (id === "GREEN" || id === "RED") {
+      return;
+    }
+    const audienceId = Number(id);
+    if (isNaN(audienceId)) {
+      return;
+    }
+
+    this.room.change(this.turn, audienceId);
+  }
+
   handleExit() {
     this.room.close();
   }
@@ -245,8 +299,8 @@ class Player extends User {
 class Audience extends User {
   isDeleted: boolean;
 
-  constructor(name: string, ws: ws.WebSocket, room: Room) {
-    super(name, ws, room);
+  constructor(name: string, connection: Connection, room: Room) {
+    super(name, connection, room);
     this.isDeleted = false;
   }
 
@@ -290,7 +344,7 @@ class Connection {
 
         this.room = sessions.get(roomId);
 
-        this.user = this.room.addUser(this.ws, this.room);
+        this.user = this.room.addUser(this, this.room);
         break;
 
       case "click":
@@ -310,9 +364,16 @@ class Connection {
           this.user.handleName(data.name);
         }
         break;
+
+      case "handin":
+        if (this.user) {
+          this.user.handleHandin(data.id);
+        }
+        break;
     }
   }
 }
+
 app.ws("/ws", (ws, _req) => {
   new Connection(ws);
 });

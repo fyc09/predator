@@ -33,7 +33,7 @@ function onSave() {
 </script>
 
 <template>
-  <form class="text">
+  <div class="text">
     用户名：
     <input
       type="text"
@@ -45,11 +45,11 @@ function onSave() {
       @keyup.enter.prevent="onSave"
     />
     <button @click.prevent="onSave">保存</button>
-  </form>
+  </div>
   <div class="text">
     你是 <b>{{ info.name }}。</b>
   </div>
-  <form class="text">
+  <div class="text">
     发消息：
     <input
       type="text"
@@ -59,7 +59,7 @@ function onSave() {
       @keyup.enter.prevent="onSend"
     />
     <button @click.prevent="onSend">发送</button>
-  </form>
+  </div>
   <template v-for="msg in history">
     <div class="chat text">
       <b>{{ msg.name }}</b

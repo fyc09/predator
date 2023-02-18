@@ -2,10 +2,18 @@
 import { Turn } from "../../backend/src/types";
 
 const props = defineProps<{
-  info: { names: string[] };
+  info: { names: string[]; name: string; isPlayer: boolean };
   currentTurn: Turn;
-  userName: string;
+  handleHandin: (id: string) => void;
 }>();
+
+function getId(index: number) {
+  return index > 1 ? (index - 2).toString() : ["RED", "GREEN"][index];
+}
+
+function onHandin(index: number) {
+  props.handleHandin(getId(index));
+}
 </script>
 
 <template>
@@ -21,8 +29,18 @@ const props = defineProps<{
             : ['credf', 'cgreenf'])[index],
     ]"
   >
-    <b v-if="name == userName">{{ name }}</b>
-    <template v-else>{{ name }}</template>
+    <b v-if="name == info.name">
+      {{ name }}
+    </b>
+    <template v-else>
+      {{ name }}
+      <button
+        v-if="index >= 2 && info.isPlayer"
+        @click.prevent="onHandin(index)"
+      >
+        交接
+      </button>
+    </template>
   </div>
 </template>
 
