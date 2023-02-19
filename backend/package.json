@@ -5,8 +5,7 @@
   "main": "src/index.js",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
-    "dev:run": "nodemon dist/",
-    "dev:ts": "tsc --watch",
+    "dev": "nodemon --ext .ts --exec 'ts-node src/'",
     "compile": "tsc",
     "test": "cross-env jest",
     "cov": "cross-env jest --coverage && istanbul check-coverage --statement 100 --branch 100 --function 100 --line 100"
@@ -24,6 +23,7 @@
     "istanbul": "^0.4.5",
     "jest": "^29.3.1",
     "nodemon": "^2.0.20",
-    "ts-jest": "^29.0.3"
+    "ts-jest": "^29.0.3",
+    "ts-node": "^10.9.1"
   }
 }

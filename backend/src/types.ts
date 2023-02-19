@@ -1,5 +1,3 @@
-import ws from "ws";
-
 export const INIT_SCORE = 5;
 
 export type Turn = number;
@@ -53,3 +51,10 @@ export type RenderedGame = RenderedGrid[][];
 export type MessageType = "status" | "data" | "hint" | "chat" | "info";
 
 export type DataType = { type: MessageType; data: any };
+
+export const updateDataEvent = Symbol("updateDataEvent");
+export const updateNamesEvent = Symbol("updateNamesEvent");
+export const updateTurnEvent = Symbol("updateTurnEvent");
+export const updateMessageEvent = Symbol("updateMessageEvent");
+
+export type Level = "info" | "warn" | "error" | "input";
