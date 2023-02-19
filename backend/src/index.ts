@@ -137,7 +137,9 @@ class Room extends EventEmitter {
 
   _updateNames() {
     let names: string[] = [this.red.name, this.green.name];
-    names.push(...this.audiences.map((user) => user.name));
+    names.push(
+      ...this.audiences.filter((user) => !user.isAdmin).map((user) => user.name)
+    );
 
     this.audiences.forEach((target) => {
       target.sendMessage("info", { names });
@@ -257,7 +259,7 @@ class User {
     this.connection.ws.send(JSON.stringify(data));
   }
 
-  messsage(name: string, message: string) {
+  messsage(name: string, message: string): void {
     this.sendMessage("chat", { name, message });
   }
 
@@ -345,6 +347,7 @@ class Audience extends User {
 
   handleExit() {
     this.isDeleted = true;
+    this.room.emit(updateNamesEvent);
   }
 }
 
@@ -376,9 +379,8 @@ class Admin extends Audience {
           return;
         }
 
-        this.message("info", `users:`);
         let users: User[] = [
-          ...this.room.audiences,
+          ...this.room._audiences,
           this.room.red,
           this.room.green,
         ];
@@ -387,11 +389,16 @@ class Admin extends Audience {
           let audience = users[id];
           this.message(
             "info",
-            `user - ${id} - ${audience.name} - ${audience.connection.ip}`
+            `user - ${id} - ${audience.name} - ${
+              // @ts-ignore
+              audience.isAdmin ? "admin" : "normal"
+            } - ${
+              // @ts-ignore
+              audience.isDeleted ? "deleted" : "ok"
+            } - ${audience.connection.ip}`
           );
         }
       },
-
       enter(this: Admin, roomid: string): void {
         this.message("info", `entering ${roomid}`);
         let room = sessions.get(roomid);
@@ -402,6 +409,7 @@ class Admin extends Audience {
         this.user = room._addAudience(this.connection, room);
         this.room = room;
         this.user.isAdmin = true;
+        this.room.emit(updateNamesEvent);
         this.message("info", `entered`);
       },
       exit(this: Admin): void {
@@ -410,6 +418,7 @@ class Admin extends Audience {
         this.sendMessage("info", { names: [] });
         this.user.handleExit();
         this.user = undefined;
+        this.room = undefined;
         this.message("info", `exited`);
       },
       close(this: Admin): void {
@@ -418,6 +427,7 @@ class Admin extends Audience {
         this.sendMessage("info", { names: [] });
         this.room.close();
         this.user = undefined;
+        this.room = undefined;
         this.message("info", `closed`);
       },
       send(this: Admin, name: string, message: string): void {
@@ -436,7 +446,7 @@ class Admin extends Audience {
         this.room.emit(updateNamesEvent);
         this.message("info", `deleted`);
       },
-      handin(this: Admin, _turn: string, _id: string) {
+      handin(this: Admin, _turn: string, _id: string): void {
         let turn = _turn.toLowerCase() === "green" ? GREEN : RED;
         let id = Number(_id);
         if (isNaN(id)) {
@@ -449,17 +459,20 @@ class Admin extends Audience {
         this.room.change(turn, id);
         this.message("info", `handed`);
       },
-      name(this: Admin, id: string, name: string) {
+      name(this: Admin, id: string, name: string): void {
         if (id === "green") {
           this.room.green.name = name;
+          this.room.green.sendMessage("info", {name: name})
         } else if (id === "red") {
           this.room.red.name = name;
+          this.room.red.sendMessage("info", {name: name})
         } else {
           let audienceId = Number(id);
           if (isNaN(audienceId)) {
             this.message("error", "Unknown id");
           }
           this.room._audiences[audienceId].name = name;
+          this.room._audiences[audienceId].sendMessage("info", {name: name})
         }
         this.room.emit(updateNamesEvent);
       },
