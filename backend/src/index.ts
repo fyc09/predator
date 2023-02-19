@@ -1,9 +1,25 @@
+import { randomUUID } from "crypto";
+import EventEmitter from "events";
 import express from "express";
 import expressWs from "express-ws";
 import ws from "ws";
 import { copyGame, handleRequest, initGame } from "./core";
 import { renderGame } from "./renderer";
-import { Game, PUBLIC, GREEN, RED, Turn, MessageType } from "./types";
+import {
+  Game,
+  PUBLIC,
+  GREEN,
+  RED,
+  Turn,
+  MessageType,
+  updateDataEvent,
+  updateNamesEvent,
+  updateTurnEvent,
+  updateMessageEvent,
+  Level,
+} from "./types";
+
+console.clear();
 
 const appBase = express();
 const app = expressWs(appBase).app;
@@ -13,7 +29,7 @@ app.use(express.static("./dist"));
 
 let sessions: Map<string, Room> = new Map();
 
-class Room {
+class Room extends EventEmitter {
   game: Game;
   green: Player;
   red: Player;
@@ -23,26 +39,32 @@ class Room {
   roomId: string;
 
   constructor(roomId: string) {
+    super();
     this.game = initGame(11, 11);
     this._audiences = [];
     this.currentTurn = GREEN;
     this.idCount = 0;
     this.roomId = roomId;
+
+    this.on(updateDataEvent, this._updateData);
+    this.on(updateNamesEvent, this._updateNames);
+    this.on(updateTurnEvent, this._updateTurn);
+    this.on(updateMessageEvent, this._updateMessages);
   }
 
   get audiences() {
     return this._audiences.filter((audience) => !audience.isDeleted);
   }
 
-  addUser(connection: Connection, room: Room) {
+  addUser(connection: Connection, room: Room): User {
     if (this.green && this.red) {
-      return this.addAudience(connection, room);
+      return this._addAudience(connection, room);
     } else {
-      return this.addPlayer(connection, room);
+      return this._addPlayer(connection, room);
     }
   }
 
-  addAudience(connection: Connection, room: Room): User {
+  _addAudience(connection: Connection, room: Room): Audience {
     let id = this.idCount;
     this.idCount++;
 
@@ -57,11 +79,11 @@ class Room {
     });
     user.sendMessage("status", 2);
 
-    this.updateNames();
+    this.emit(updateNamesEvent);
     return user;
   }
 
-  addPlayer(connection: Connection, room: Room): User {
+  _addPlayer(connection: Connection, room: Room): Player {
     let id = this.idCount;
     this.idCount++;
 
@@ -78,7 +100,7 @@ class Room {
     this.green = green;
     let red = this.red;
 
-    this.updateData();
+    this._updateData();
 
     red.sendMessage("info", {
       name: red.name,
@@ -101,7 +123,7 @@ class Room {
     return green;
   }
 
-  updateData() {
+  _updateData() {
     let publicBoard = renderGame(this.game, PUBLIC, this.currentTurn);
     this.audiences.forEach((target) => {
       target.sendMessage("data", publicBoard);
@@ -113,7 +135,7 @@ class Room {
     this.red.sendMessage("data", renderGame(this.game, RED, this.currentTurn));
   }
 
-  updateNames() {
+  _updateNames() {
     let names: string[] = [this.red.name, this.green.name];
     names.push(...this.audiences.map((user) => user.name));
 
@@ -124,7 +146,7 @@ class Room {
     this.green.sendMessage("info", { names });
   }
 
-  updateTurn() {
+  _updateTurn() {
     let currentTurn = this.currentTurn;
     this.audiences.forEach((target) => {
       target.sendMessage("info", { currentTurn });
@@ -133,25 +155,29 @@ class Room {
     this.green.sendMessage("info", { currentTurn });
   }
 
-  updateMessages(message: string, name: string) {
-    const data = {
-      message: message,
-      name: name,
-    };
+  _updateMessages(message: string, name: string): void {
     this.audiences.forEach((target) => {
-      target.sendMessage("chat", data);
+      target.messsage(name, message);
     });
-    this.green.sendMessage("chat", data);
-    this.red.sendMessage("chat", data);
+    this.green.messsage(name, message);
+    this.red.messsage(name, message);
   }
 
-  change(turn: Turn, audienceId: number) {
+  change(turn: Turn, audienceId: number): void {
     let player: Player;
     let audience: Audience;
 
     if (turn === GREEN) {
       player = this.green;
       audience = this.audiences[audienceId];
+      if (audience.isAdmin) {
+        player.sendMessage("chat", {
+          message: "该用户是管理员，无法交接",
+          name: "系统",
+        });
+        return;
+      }
+
       audience.connection.user = this.green = new Player(
         audience.name,
         audience.connection,
@@ -161,6 +187,14 @@ class Room {
     } else {
       player = this.red;
       audience = this.audiences[audienceId];
+      if (audience.isAdmin) {
+        player.sendMessage("chat", {
+          message: "该用户是管理员，无法交接",
+          name: "系统",
+        });
+        return;
+      }
+
       audience.connection.user = this.red = new Player(
         audience.name,
         audience.connection,
@@ -175,8 +209,8 @@ class Room {
       player.room
     );
 
-    this.updateData();
-    this.updateNames();
+    this.emit(updateDataEvent);
+    this.emit(updateNamesEvent);
 
     player.sendMessage("info", { isPlayer: false });
     audience.sendMessage("info", { isPlayer: true });
@@ -189,7 +223,7 @@ class Room {
     };
     const OPEN = this.red.connection.ws.OPEN;
     this.audiences.forEach((target) => {
-      if (target.connection.ws.readyState == OPEN) {
+      if (target.connection.ws.readyState == OPEN && !target.isAdmin) {
         target.sendMessage("chat", data);
         target.connection.ws.close();
       }
@@ -217,19 +251,23 @@ class User {
     this.room = room;
   }
 
-  sendMessage(type: MessageType, msg: any) {
+  sendMessage(type: MessageType, msg: any): void {
     let data: any = { type };
     data.data = msg;
     this.connection.ws.send(JSON.stringify(data));
   }
 
-  handleClick(x: number, y: number): void {}
-
-  handleMessage(message: string) {
-    this.room.updateMessages(message, this.name);
+  messsage(name: string, message: string) {
+    this.sendMessage("chat", { name, message });
   }
 
-  handleName(name: string) {
+  handleClick(x: number, y: number): void {}
+
+  handleMessage(message: string): void {
+    this.room.emit(updateMessageEvent, message, this.name);
+  }
+
+  handleName(name: string): void {
     let ok = true;
     name = name.replace(/ \t\n\r/g, "");
     this.room.audiences.forEach((target) => {
@@ -246,11 +284,11 @@ class User {
       this.sendMessage("info", { name });
     }
 
-    this.room.updateNames();
+    this.room.emit(updateNamesEvent);
   }
 
-  handleHandin(id: string) {}
-  handleExit() {}
+  handleHandin(id: string): void {}
+  handleExit(): void {}
 }
 
 class Player extends User {
@@ -261,7 +299,7 @@ class Player extends User {
     this.turn = turn;
   }
 
-  handleClick(x: number, y: number) {
+  handleClick(x: number, y: number): void {
     if (this.turn != this.room.currentTurn) {
       return;
     }
@@ -275,11 +313,11 @@ class Player extends User {
     this.room.game = result as Game;
     this.room.currentTurn = 5 - this.room.currentTurn;
 
-    this.room.updateData();
-    this.room.updateTurn();
+    this.room.emit(updateDataEvent);
+    this.room.emit(updateDataEvent);
   }
 
-  handleHandin(id: string) {
+  handleHandin(id: string): void {
     if (id === "GREEN" || id === "RED") {
       return;
     }
@@ -291,13 +329,14 @@ class Player extends User {
     this.room.change(this.turn, audienceId);
   }
 
-  handleExit() {
+  handleExit(): void {
     this.room.close();
   }
 }
 
 class Audience extends User {
   isDeleted: boolean;
+  isAdmin: boolean;
 
   constructor(name: string, connection: Connection, room: Room) {
     super(name, connection, room);
@@ -309,16 +348,178 @@ class Audience extends User {
   }
 }
 
+class Admin extends Audience {
+  methods: any;
+  eventListeners: [EventEmitter, symbol, (...args: any[]) => void][];
+  user: Audience;
+
+  constructor(connection: Connection) {
+    super("Admin", connection, undefined);
+
+    this.sendMessage("status", 2);
+    this.sendMessage("data", {});
+    this.sendMessage("info", { names: [] });
+    this.message("info", "Welcome to administrators' command line!");
+
+    this.methods = {
+      ping(this: Admin, ...args: string[]): void {
+        this.message("info", "pong");
+        for (let arg of args) {
+          this.message("info", arg);
+        }
+      },
+      ls(this: Admin): void {
+        for (let roomid of sessions.keys()) {
+          this.message("info", `room - ${roomid}`);
+        }
+        if (!this.room) {
+          return;
+        }
+
+        this.message("info", `users:`);
+        let users: User[] = [
+          ...this.room.audiences,
+          this.room.red,
+          this.room.green,
+        ];
+
+        for (let id in users) {
+          let audience = users[id];
+          this.message(
+            "info",
+            `user - ${id} - ${audience.name} - ${audience.connection.ip}`
+          );
+        }
+      },
+
+      enter(this: Admin, roomid: string): void {
+        this.message("info", `entering ${roomid}`);
+        let room = sessions.get(roomid);
+        if (room === undefined) {
+          this.message("error", `room not found`);
+          return;
+        }
+        this.user = room._addAudience(this.connection, room);
+        this.room = room;
+        this.user.isAdmin = true;
+        this.message("info", `entered`);
+      },
+      exit(this: Admin): void {
+        this.message("info", `exit`);
+        this.sendMessage("data", {});
+        this.sendMessage("info", { names: [] });
+        this.user.handleExit();
+        this.user = undefined;
+        this.message("info", `exited`);
+      },
+      close(this: Admin): void {
+        this.message("info", `closing`);
+        this.sendMessage("data", {});
+        this.sendMessage("info", { names: [] });
+        this.room.close();
+        this.user = undefined;
+        this.message("info", `closed`);
+      },
+      send(this: Admin, name: string, message: string): void {
+        this.message("info", `sending ${message}`);
+        this.room._updateMessages(message, name);
+        this.message("info", `sent`);
+      },
+      delete(this: Admin, _id: string): void {
+        let id: number = Number(_id);
+        if (isNaN(id)) {
+          this.message("error", "Unknown id");
+        }
+        this.message("info", `deleting ${id}`);
+        this.room._audiences[id].messsage("系统", "你已被管理员移出");
+        this.room._audiences[id].handleExit();
+        this.room.emit(updateNamesEvent);
+        this.message("info", `deleted`);
+      },
+      handin(this: Admin, _turn: string, _id: string) {
+        let turn = _turn.toLowerCase() === "green" ? GREEN : RED;
+        let id = Number(_id);
+        if (isNaN(id)) {
+          this.message("error", "Unknown id");
+        }
+        this.message(
+          "info",
+          `handing ${turn === GREEN ? "GREEN" : "RED"} to ${id}`
+        );
+        this.room.change(turn, id);
+        this.message("info", `handed`);
+      },
+      name(this: Admin, id: string, name: string) {
+        if (id === "green") {
+          this.room.green.name = name;
+        } else if (id === "red") {
+          this.room.red.name = name;
+        } else {
+          let audienceId = Number(id);
+          if (isNaN(audienceId)) {
+            this.message("error", "Unknown id");
+          }
+          this.room._audiences[audienceId].name = name;
+        }
+        this.room.emit(updateNamesEvent);
+      },
+    };
+  }
+
+  message(level: Level, message: string, system: boolean = true): void {
+    this.sendMessage("chat", {
+      name: system ? "==>" : "<==",
+      message: `[${level}] ${message}`,
+    });
+  }
+
+  handleMessage(message: string): void {
+    this.message("input", `${message}`, false);
+    let path: string[];
+    let args: string[];
+    let parts: string[];
+    parts = message.split(" ");
+    path = parts[0].split(".");
+    args = parts.slice(1, parts.length);
+
+    this.message("info", `executer: ${path.join("->")}`, false);
+    this.message("info", `arguments: ${args.join(";")}`, false);
+
+    let executer: any = this.methods;
+    for (let key of path) {
+      executer = executer[key];
+      if (executer === undefined) {
+        this.message("error", `got undefined when accessing ${key}`);
+        return;
+      }
+    }
+
+    try {
+      executer.call(this, ...args);
+    } catch (e) {
+      this.message("error", e.toString());
+      console.error(e);
+    }
+  }
+
+  handleClick(x: number, y: number): void {}
+  handleExit(): void {}
+  handleHandin(id: string): void {}
+  handleName(name: string): void {}
+}
+
 class Connection {
   id: number;
   ws: ws.WebSocket;
+  ip: string;
   name: string;
   roomId: string;
   room: Room;
   user: User;
 
-  constructor(ws: ws.WebSocket) {
+  constructor(ws: ws.WebSocket, ip: string) {
     this.ws = ws;
+    this.ip = ip;
 
     ws.on("message", (message) => this.handleMessage(message));
 
@@ -330,11 +531,16 @@ class Connection {
     });
   }
 
-  handleMessage(message: any) {
+  handleMessage(message: any): void {
     let data: any = JSON.parse(message.toString());
 
     switch (data.type) {
       case "apply":
+        if (tokens.in(data.room)) {
+          this.user = new Admin(this);
+          break;
+        }
+
         let roomId = (this.id = data.room);
 
         if (!sessions.has(roomId)) {
@@ -374,8 +580,33 @@ class Connection {
   }
 }
 
-app.ws("/ws", (ws, _req) => {
-  new Connection(ws);
+class Tokens {
+  tokenList: string[];
+
+  constructor() {
+    this.tokenList = [];
+    for (let i = 0; i < 6; i++) {
+      const uuid = randomUUID();
+      this.tokenList = [uuid, ...this.tokenList];
+      console.log(uuid);
+    }
+    setInterval(() => {
+      this.tokenList.pop();
+      const uuid = randomUUID();
+      this.tokenList = [uuid, ...this.tokenList];
+      console.log(uuid);
+    }, 10000);
+  }
+
+  in(token: string): boolean {
+    return this.tokenList.find((value) => value === token) !== undefined;
+  }
+}
+
+const tokens = new Tokens();
+
+app.ws("/ws", (ws, req) => {
+  new Connection(ws, req.ip);
 });
 
 app.listen(8000, "localhost");

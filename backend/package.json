@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
-    "dev": "nodemon --exec 'ts-node src/'",
+    "dev": "nodemon --ext .ts --exec 'ts-node src/'",
     "compile": "tsc",
     "test": "cross-env jest",
     "cov": "cross-env jest --coverage && istanbul check-coverage --statement 100 --branch 100 --function 100 --line 100"
@@ -13,7 +13,6 @@
   "dependencies": {
     "express": "^4.18.2",
     "express-ws": "^5.0.2",
-    "ts-node": "^10.9.1",
     "typescript": "^4.9.4"
   },
   "devDependencies": {
@@ -24,6 +23,7 @@
     "istanbul": "^0.4.5",
     "jest": "^29.3.1",
     "nodemon": "^2.0.20",
-    "ts-jest": "^29.0.3"
+    "ts-jest": "^29.0.3",
+    "ts-node": "^10.9.1"
   }
 }
