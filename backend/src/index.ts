@@ -462,17 +462,17 @@ class Admin extends Audience {
       name(this: Admin, id: string, name: string): void {
         if (id === "green") {
           this.room.green.name = name;
-          this.room.green.sendMessage("info", {name: name})
+          this.room.green.sendMessage("info", { name: name });
         } else if (id === "red") {
           this.room.red.name = name;
-          this.room.red.sendMessage("info", {name: name})
+          this.room.red.sendMessage("info", { name: name });
         } else {
           let audienceId = Number(id);
           if (isNaN(audienceId)) {
             this.message("error", "Unknown id");
           }
           this.room._audiences[audienceId].name = name;
-          this.room._audiences[audienceId].sendMessage("info", {name: name})
+          this.room._audiences[audienceId].sendMessage("info", { name: name });
         }
         this.room.emit(updateNamesEvent);
       },
