@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
-    "dev": "nodemon --ext .ts --exec 'ts-node src/'",
+    "dev": "nodemon --ext .ts --exec npx ts-node src/",
     "compile": "tsc",
     "test": "cross-env jest",
     "cov": "cross-env jest --coverage && istanbul check-coverage --statement 100 --branch 100 --function 100 --line 100"
