@@ -24,12 +24,14 @@ const info: Ref<{
   isAdmin: boolean;
   currentTurn: Turn;
   names: string[];
+  single: boolean;
 }> = ref({
   name: "",
   isPlayer: false,
   isAdmin: false,
   currentTurn: RED,
   names: [""],
+  single: false,
 });
 
 function handleMouseDown(x: number, y: number) {
@@ -46,7 +48,15 @@ function handleEnterRoom(room: string) {
   ws.send(
     JSON.stringify({
       type: "apply",
-      room: room,
+      room,
+    })
+  );
+}
+
+function handleSingle() {
+  ws.send(
+    JSON.stringify({
+      type: "single",
     })
   );
 }
@@ -111,7 +121,11 @@ ws.onmessage = (e) => {
 
 <template>
   <Navbar :hint="hint" />
-  <Home v-if="status == 0" :handleEnter="handleEnterRoom" />
+  <Home
+    v-if="status == 0"
+    :handle-enter="handleEnterRoom"
+    :handle-single="handleSingle"
+  />
   <div v-if="status == 1">
     <!--为动效预留空间-->
   </div>
@@ -123,7 +137,7 @@ ws.onmessage = (e) => {
         :set-hint="setHint"
       />
     </div>
-    <div class="pad">
+    <div class="pad" v-if="!info.single">
       <Chat
         :history="chatting"
         :info="info"
@@ -131,7 +145,7 @@ ws.onmessage = (e) => {
         :handle-name-change="handleChangeName"
       />
     </div>
-    <div class="pad">
+    <div class="pad" v-if="!info.single">
       <UserList
         :handle-handin="handleHandin"
         :info="info"

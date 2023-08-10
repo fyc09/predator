@@ -3,12 +3,17 @@ import { Ref, ref } from "vue";
 
 const props = defineProps<{
   handleEnter: (room: string) => void;
+  handleSingle: () => void;
 }>();
 
 const room: Ref<string> = ref("");
 
 function onEnter() {
   props.handleEnter(room.value);
+}
+
+function onSingle() {
+  props.handleSingle();
 }
 </script>
 
@@ -24,5 +29,7 @@ function onEnter() {
       class="container"
     />
     <button @click.prevent="onEnter">进入</button>
+    <br />
+    <button @click.prevent="onSingle">单机模式</button>
   </div>
 </template>
