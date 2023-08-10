@@ -124,7 +124,7 @@ describe("test handle_request", () => {
 
     test("without frozen", () => {
       let exp = copyGame(sample);
-      exp.board[0][1] = [RED, 5];
+      exp.board[0][1] = [RED, 3];
       exp.frozen = [
         [-1, -1],
         [-1, -1],
@@ -152,7 +152,7 @@ describe("test handle_request", () => {
       ];
 
       let exp = copyGame(inp);
-      exp.board[3][2] = [RED, 4];
+      exp.board[3][2] = [RED, 3];
       exp.board[3][1] = [PUBLIC, 0];
       exp.frozen = [
         [-1, -1],

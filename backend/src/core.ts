@@ -5,6 +5,8 @@ import {
   Position,
   RED,
   INIT_SCORE,
+  BASE_CAMP_INIT_SCORE,
+  NEW_SCORE,
   GREEN,
   Frozen,
   Grid,
@@ -29,10 +31,10 @@ export function initGame(width: number, height: number): Game {
   let pos: Position;
 
   pos = getCamp(board, RED);
-  board[pos[0]][pos[1]] = [RED, INIT_SCORE];
+  board[pos[0]][pos[1]] = [RED, BASE_CAMP_INIT_SCORE];
 
   pos = getCamp(board, GREEN);
-  board[pos[0]][pos[1]] = [GREEN, INIT_SCORE];
+  board[pos[0]][pos[1]] = [GREEN, BASE_CAMP_INIT_SCORE];
 
   return {
     board,
@@ -124,7 +126,7 @@ export function handleRequest(
       // 如果小于0，改为己方领地
       if (grid[1] < 0) {
         grid[0] = OWN;
-        grid[1] = -grid[1] + 3;
+        grid[1] = -grid[1] + NEW_SCORE;
         getPlace = true;
         losePlace = true;
       }
