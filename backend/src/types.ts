@@ -1,4 +1,6 @@
-export const INIT_SCORE = 5;
+export const INIT_SCORE = 3;
+export const BASE_CAMP_INIT_SCORE = 5;
+export const NEW_SCORE = 2;
 
 export type Turn = number;
 
