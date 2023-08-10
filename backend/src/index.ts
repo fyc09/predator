@@ -27,22 +27,66 @@ const app = expressWs(appBase).app;
 app.use(express.json());
 app.use(express.static("./dist"));
 
-let sessions: Map<string, Room> = new Map();
+let sessions: Map<string, NormalRoom> = new Map();
 
 class Room extends EventEmitter {
   game: Game;
-  green: Player;
-  red: Player;
-  _audiences: Audience[];
   currentTurn: Turn;
-  idCount: number;
-  roomId: string;
 
   constructor(roomId: string) {
     super();
     this.game = initGame(11, 11);
-    this._audiences = [];
     this.currentTurn = GREEN;
+  }
+
+  get audiences(): Audience[] {
+    return [];
+  }
+
+  addUser(connection: Connection): User {
+    return;
+  }
+
+  change(turn: Turn, audienceId: number): void {}
+
+  close(): void {}
+}
+
+class SingleRoom extends Room {
+  user: Single;
+
+  constructor() {
+    super("-");
+    this.on(updateDataEvent, this._updateData);
+  }
+
+  addUser(connection: Connection): User {
+    let user = new Single(connection, this);
+    this.user = user;
+    user.sendMessage("status", 2);
+    user.sendMessage("info", { single: true });
+    this.emit(updateDataEvent);
+    return user;
+  }
+
+  _updateData() {
+    this.user.sendMessage(
+      "data",
+      renderGame(this.game, this.currentTurn, this.currentTurn)
+    );
+  }
+}
+
+class NormalRoom extends Room {
+  green: Player;
+  red: Player;
+  _audiences: Audience[];
+  idCount: number;
+  roomId: string;
+
+  constructor(roomId: string) {
+    super(roomId);
+    this._audiences = [];
     this.idCount = 0;
     this.roomId = roomId;
 
@@ -56,19 +100,19 @@ class Room extends EventEmitter {
     return this._audiences.filter((audience) => !audience.isDeleted);
   }
 
-  addUser(connection: Connection, room: Room): User {
+  addUser(connection: Connection): User {
     if (this.green && this.red) {
-      return this._addAudience(connection, room);
+      return this._addAudience(connection);
     } else {
-      return this._addPlayer(connection, room);
+      return this._addPlayer(connection);
     }
   }
 
-  _addAudience(connection: Connection, room: Room): Audience {
+  _addAudience(connection: Connection): Audience {
     let id = this.idCount;
     this.idCount++;
 
-    const user = new Audience(`user-${id + 1}`, connection, room);
+    const user = new Audience(`user-${id + 1}`, connection, this);
     this._audiences.push(user);
     user.sendMessage("data", renderGame(this.game, PUBLIC, this.currentTurn));
     user.sendMessage("info", {
@@ -83,12 +127,12 @@ class Room extends EventEmitter {
     return user;
   }
 
-  _addPlayer(connection: Connection, room: Room): Player {
+  _addPlayer(connection: Connection): Player {
     let id = this.idCount;
     this.idCount++;
 
     if (id == 0) {
-      let red = new Player(`user-${id + 1}`, connection, room, RED);
+      let red = new Player(`user-${id + 1}`, connection, this, RED);
       this.red = red;
 
       red.sendMessage("status", 1);
@@ -96,7 +140,7 @@ class Room extends EventEmitter {
       return red;
     }
 
-    let green = new Player(`user-${id + 1}`, connection, room, GREEN);
+    let green = new Player(`user-${id + 1}`, connection, this, GREEN);
     this.green = green;
     let red = this.red;
 
@@ -123,7 +167,7 @@ class Room extends EventEmitter {
     return green;
   }
 
-  _updateData() {
+  _updateData(): void {
     let publicBoard = renderGame(this.game, PUBLIC, this.currentTurn);
     this.audiences.forEach((target) => {
       target.sendMessage("data", publicBoard);
@@ -135,7 +179,7 @@ class Room extends EventEmitter {
     this.red.sendMessage("data", renderGame(this.game, RED, this.currentTurn));
   }
 
-  _updateNames() {
+  _updateNames(): void {
     let names: string[] = [this.red.name, this.green.name];
     names.push(
       ...this.audiences.filter((user) => !user.isAdmin).map((user) => user.name)
@@ -148,7 +192,7 @@ class Room extends EventEmitter {
     this.green.sendMessage("info", { names });
   }
 
-  _updateTurn() {
+  _updateTurn(): void {
     let currentTurn = this.currentTurn;
     this.audiences.forEach((target) => {
       target.sendMessage("info", { currentTurn });
@@ -218,7 +262,7 @@ class Room extends EventEmitter {
     audience.sendMessage("info", { isPlayer: true });
   }
 
-  close() {
+  close(): void {
     const data = {
       name: "系统",
       message: "房间已关闭",
@@ -293,6 +337,30 @@ class User {
   handleExit(): void {}
 }
 
+class Single extends User {
+  constructor(connection: Connection, room: Room) {
+    super("", connection, room);
+  }
+
+  handleClick(x: number, y: number): void {
+    let result = handleRequest(
+      copyGame(this.room.game),
+      [x, y],
+      this.room.currentTurn
+    );
+
+    //@ts-ignore
+    if (result < 0) {
+      return;
+    }
+
+    this.room.game = result as Game;
+    this.room.currentTurn = 5 - this.room.currentTurn;
+
+    this.room.emit(updateDataEvent);
+  }
+}
+
 class Player extends User {
   turn: Turn;
 
@@ -308,6 +376,7 @@ class Player extends User {
 
     let result = handleRequest(copyGame(this.room.game), [x, y], this.turn);
 
+    //@ts-ignore
     if (result < 0) {
       return;
     }
@@ -315,7 +384,6 @@ class Player extends User {
     this.room.game = result as Game;
     this.room.currentTurn = 5 - this.room.currentTurn;
 
-    this.room.emit(updateDataEvent);
     this.room.emit(updateDataEvent);
   }
 
@@ -345,13 +413,14 @@ class Audience extends User {
     this.isDeleted = false;
   }
 
-  handleExit() {
+  handleExit(): void {
     this.isDeleted = true;
     this.room.emit(updateNamesEvent);
   }
 }
 
 class Admin extends Audience {
+  room: NormalRoom;
   methods: any;
   eventListeners: [EventEmitter, symbol, (...args: any[]) => void][];
   user: Audience;
@@ -406,7 +475,7 @@ class Admin extends Audience {
           this.message("error", `room not found`);
           return;
         }
-        this.user = room._addAudience(this.connection, room);
+        this.user = room._addAudience(this.connection);
         this.room = room;
         this.user.isAdmin = true;
         this.room.emit(updateNamesEvent);
@@ -529,6 +598,8 @@ class Connection {
   roomId: string;
   room: Room;
   user: User;
+  // For single mode.
+  users: User[];
 
   constructor(ws: ws.WebSocket, ip: string) {
     this.ws = ws;
@@ -557,13 +628,19 @@ class Connection {
         let roomId = (this.id = data.room);
 
         if (!sessions.has(roomId)) {
-          this.room = new Room(roomId);
-          sessions.set(roomId, this.room);
+          let room = new NormalRoom(roomId);
+          this.room = room;
+          sessions.set(roomId, room);
         }
 
         this.room = sessions.get(roomId);
 
-        this.user = this.room.addUser(this, this.room);
+        this.user = this.room.addUser(this);
+        break;
+
+      case "single":
+        this.room = new SingleRoom();
+        this.user = this.room.addUser(this);
         break;
 
       case "click":
