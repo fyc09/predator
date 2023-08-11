@@ -7,8 +7,8 @@ release: cov build compile
 	cp backend/dist build/server -r
 	cp backend/package.json build/package.json
 	rm build/server/*.test.js
-	printf "npm install --omit=dev && node ./server" >build/run.sh
-	printf "npm install --omit=dev && node .\server" >build/run.bat
+	printf "npm install --omit=dev && DEBUG=predator:server:token node ./server" >build/run.sh
+	printf "npm install --omit=dev && set DEBUG=predator:server:toekn && node .\server" >build/run.bat
 
 install:
 	npm install
