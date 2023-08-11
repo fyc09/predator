@@ -135,6 +135,7 @@ ws.onmessage = (e) => {
         :data="data"
         :handle-grid-click="handleMouseDown"
         :set-hint="setHint"
+        :current-turn="info.currentTurn"
       />
     </div>
     <div class="pad" v-if="!info.single">

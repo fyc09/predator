@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { hints, classes } from "./constants";
 import { Ref, ref } from "vue";
-import { Position, RenderedGame, ZERO_POSITION } from "../../backend/src/types";
+import {
+  Position,
+  RenderedGame,
+  Turn,
+  ZERO_POSITION,
+} from "../../backend/src/types";
 
 const props = defineProps<{
   data: RenderedGame;
+  currentTurn: Turn;
   setHint: (hint: string) => void;
   handleGridClick: (x: number, y: number) => void;
 }>();
@@ -38,6 +44,15 @@ function onLeave(_x: number, _y: number) {
         @mousedown="handleGridClick(i, j)"
       >
         {{ grid.score }}
+      </td>
+    </tr>
+    <tr>
+      <td
+        colspan="11"
+        :class="[classes[currentTurn]]"
+        :style="{ textAlign: 'center' }"
+      >
+        当前回合
       </td>
     </tr>
   </table>

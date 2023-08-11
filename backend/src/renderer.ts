@@ -48,6 +48,7 @@ export function renderGame(
     for (let j = 0; j < game.board[0].length; j++) {
       let result = handleRequest(copyGame(game), [i, j], currentTurn);
       let grid = renderedGame[i][j];
+      //@ts-ignore
       if (result < 0) {
         grid.hint = -result;
         grid.hover = COLOR_UNAVAILABLE;

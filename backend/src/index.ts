@@ -18,8 +18,9 @@ import {
   updateMessageEvent,
   Level,
 } from "./types";
+import debug from "debug";
 
-console.clear();
+const log = debug("predator:server");
 
 const appBase = express();
 const app = expressWs(appBase).app;
@@ -56,16 +57,26 @@ class SingleRoom extends Room {
   user: Single;
 
   constructor() {
+    log("single room CREATING");
     super("-");
     this.on(updateDataEvent, this._updateData);
+    this.on(updateTurnEvent, this._updateTurn);
+    log("single room CREATED");
   }
 
   addUser(connection: Connection): User {
+    log("connection %s -> single room ...", connection);
     let user = new Single(connection, this);
     this.user = user;
+
     user.sendMessage("status", 2);
     user.sendMessage("info", { single: true });
+
     this.emit(updateDataEvent);
+    this.emit(updateTurnEvent);
+
+    log("connection %s -> single room OK", connection);
+
     return user;
   }
 
@@ -74,6 +85,10 @@ class SingleRoom extends Room {
       "data",
       renderGame(this.game, this.currentTurn, this.currentTurn)
     );
+  }
+
+  _updateTurn() {
+    this.user.sendMessage("info", { currentTurn: this.currentTurn });
   }
 }
 
@@ -109,6 +124,7 @@ class NormalRoom extends Room {
   }
 
   _addAudience(connection: Connection): Audience {
+    log("audience connection %s -> '%s' ...", connection, this.roomId);
     let id = this.idCount;
     this.idCount++;
 
@@ -124,6 +140,9 @@ class NormalRoom extends Room {
     user.sendMessage("status", 2);
 
     this.emit(updateNamesEvent);
+
+    log("audience connection %s -> '%s' OK", connection, this.roomId);
+
     return user;
   }
 
@@ -132,14 +151,17 @@ class NormalRoom extends Room {
     this.idCount++;
 
     if (id == 0) {
+      log("RED connection %s -> room '%s' ...", connection, this.roomId);
       let red = new Player(`user-${id + 1}`, connection, this, RED);
       this.red = red;
 
       red.sendMessage("status", 1);
       red.sendMessage("hint", "请等待");
+      log("RED connection %s -> room '%s' OK", connection, this.roomId);
       return red;
     }
 
+    log("GREEN connection %s -> room '%s'", connection, this.roomId);
     let green = new Player(`user-${id + 1}`, connection, this, GREEN);
     this.green = green;
     let red = this.red;
@@ -163,6 +185,8 @@ class NormalRoom extends Room {
       isPlayer: true,
     });
     green.sendMessage("status", 2);
+
+    log("GREEN connection %s -> room '%s' OK", connection, this.roomId);
 
     return green;
   }
@@ -216,6 +240,7 @@ class NormalRoom extends Room {
     if (turn === GREEN) {
       player = this.green;
       audience = this.audiences[audienceId];
+      log("room '%s', GREEN => %s ...", this.roomId, audience.name);
       if (audience.isAdmin) {
         player.sendMessage("chat", {
           message: "该用户是管理员，无法交接",
@@ -233,6 +258,7 @@ class NormalRoom extends Room {
     } else {
       player = this.red;
       audience = this.audiences[audienceId];
+      log("room '%s', RED => %s ...", this.roomId, audience.name);
       if (audience.isAdmin) {
         player.sendMessage("chat", {
           message: "该用户是管理员，无法交接",
@@ -260,9 +286,11 @@ class NormalRoom extends Room {
 
     player.sendMessage("info", { isPlayer: false });
     audience.sendMessage("info", { isPlayer: true });
+    log("room '%s', HANDIN OK.", this.roomId, audience.name);
   }
 
   close(): void {
+    log("room '%s', CLOSING");
     const data = {
       name: "系统",
       message: "房间已关闭",
@@ -283,6 +311,7 @@ class NormalRoom extends Room {
       this.green.connection.ws.close();
     }
     sessions.delete(this.roomId);
+    log("room '%s', CLOSED");
   }
 }
 
@@ -301,6 +330,10 @@ class User {
     let data: any = { type };
     data.data = msg;
     this.connection.ws.send(JSON.stringify(data));
+    if (type === "data") {
+      msg = "...";
+    }
+    debug("predator:server:message")("send message %s &s %s", this, type, msg);
   }
 
   messsage(name: string, message: string): void {
@@ -358,6 +391,7 @@ class Single extends User {
     this.room.currentTurn = 5 - this.room.currentTurn;
 
     this.room.emit(updateDataEvent);
+    this.sendMessage("info", { currentTurn: this.room.currentTurn });
   }
 }
 
@@ -385,6 +419,7 @@ class Player extends User {
     this.room.currentTurn = 5 - this.room.currentTurn;
 
     this.room.emit(updateDataEvent);
+    this.room.emit(updateTurnEvent);
   }
 
   handleHandin(id: string): void {
@@ -678,13 +713,13 @@ class Tokens {
     for (let i = 0; i < 6; i++) {
       const uuid = randomUUID();
       this.tokenList = [uuid, ...this.tokenList];
-      console.log(uuid);
+      debug("predator:server:token")(uuid);
     }
     setInterval(() => {
       this.tokenList.pop();
       const uuid = randomUUID();
       this.tokenList = [uuid, ...this.tokenList];
-      console.log(uuid);
+      debug("predator:server:token")(uuid);
     }, 10000);
   }
 
