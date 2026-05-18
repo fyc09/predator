@@ -19,6 +19,7 @@ import {
   Level,
 } from "./types";
 import debug from "debug";
+import { AIBridge } from "./ai/bridge";
 
 const log = debug("predator:server");
 
@@ -89,6 +90,101 @@ class SingleRoom extends Room {
 
   _updateTurn() {
     this.user.sendMessage("info", { currentTurn: this.currentTurn });
+  }
+}
+
+class AIRoom extends Room {
+  user: AISingle;
+  humanTurn: Turn;
+
+  constructor() {
+    log("AI room CREATING");
+    super("ai");
+    this.humanTurn = GREEN;
+    this.on(updateDataEvent, this._updateData);
+    this.on(updateTurnEvent, this._updateTurn);
+    log("AI room CREATED");
+  }
+
+  addUser(connection: Connection): User {
+    log("connection %s -> AI room ...", connection);
+    let user = new AISingle(connection, this);
+    this.user = user;
+
+    user.sendMessage("status", 2);
+    user.sendMessage("info", { single: true, ai: true, humanTurn: this.humanTurn });
+
+    this.emit(updateDataEvent);
+    this.emit(updateTurnEvent);
+
+    if (this.currentTurn !== this.humanTurn) {
+      setImmediate(() => this.doAIMove());
+    }
+
+    log("connection %s -> AI room OK", connection);
+    return user;
+  }
+
+  async doAIMove(): Promise<void> {
+    if (this.currentTurn === this.humanTurn) return;
+
+    if (!aiBridge.connected) {
+      log("AI bridge not connected");
+      this.user.sendMessage("chat", {
+        name: "系统",
+        message: "AI 服务未连接，请先启动 Python AI 服务",
+      });
+      return;
+    }
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+      try {
+        const move = await aiBridge.getMove(
+          this.game.board,
+          this.game.frozen,
+          this.currentTurn
+        );
+
+        if (!move) {
+          log("AI returned no legal moves");
+          break;
+        }
+
+        const result = handleRequest(copyGame(this.game), move, this.currentTurn);
+        if (typeof result !== "number") {
+          this.game = result;
+          this.currentTurn = 5 - this.currentTurn;
+          this.emit(updateDataEvent);
+          this.emit(updateTurnEvent);
+          return;
+        }
+      } catch (err) {
+        log("AI move error: %s", (err as Error).message);
+        break;
+      }
+    }
+  }
+
+  _updateData() {
+    this.user.sendMessage(
+      "data",
+      renderGame(this.game, this.humanTurn, this.currentTurn)
+    );
+  }
+
+  _updateTurn() {
+    this.user.sendMessage("info", { currentTurn: this.currentTurn });
+  }
+
+  close(): void {
+    log("AI room CLOSING");
+    if (this.user) {
+      this.user.sendMessage("chat", {
+        name: "系统",
+        message: "房间已关闭",
+      });
+    }
+    log("AI room CLOSED");
   }
 }
 
@@ -395,6 +491,35 @@ class Single extends User {
   }
 }
 
+class AISingle extends User {
+  constructor(connection: Connection, room: Room) {
+    super("", connection, room);
+  }
+
+  handleClick(x: number, y: number): void {
+    const room = this.room as AIRoom;
+
+    if (room.currentTurn !== room.humanTurn) return;
+
+    let result = handleRequest(
+      copyGame(room.game),
+      [x, y],
+      room.currentTurn
+    );
+
+    //@ts-ignore
+    if (result < 0) return;
+
+    room.game = result as Game;
+    room.currentTurn = 5 - room.currentTurn;
+
+    room.emit(updateDataEvent);
+    this.sendMessage("info", { currentTurn: room.currentTurn });
+
+    setImmediate(() => room.doAIMove());
+  }
+}
+
 class Player extends User {
   turn: Turn;
 
@@ -678,6 +803,11 @@ class Connection {
         this.user = this.room.addUser(this);
         break;
 
+      case "single:ai":
+        this.room = new AIRoom();
+        this.user = this.room.addUser(this);
+        break;
+
       case "click":
         if (this.user) {
           this.user.handleClick(data.x, data.y);
@@ -734,4 +864,13 @@ app.ws("/ws", (ws, req) => {
   new Connection(ws, req.ip);
 });
 
-app.listen(8000, "localhost");
+app.listen(8000, "127.0.0.1");
+
+// Initialize AI bridge (non-blocking)
+const aiBridge = new AIBridge();
+aiBridge.connect().then(() => {
+  log("AI bridge connected to Python service");
+}).catch((err) => {
+  log("AI bridge failed to connect: %s", err.message);
+  log("AI mode will not be available until Python service is running");
+});

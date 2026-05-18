@@ -25,6 +25,8 @@ const info: Ref<{
   currentTurn: Turn;
   names: string[];
   single: boolean;
+  ai: boolean;
+  humanTurn: Turn;
 }> = ref({
   name: "",
   isPlayer: false,
@@ -32,6 +34,8 @@ const info: Ref<{
   currentTurn: RED,
   names: [""],
   single: false,
+  ai: false,
+  humanTurn: RED,
 });
 
 function handleMouseDown(x: number, y: number) {
@@ -57,6 +61,14 @@ function handleSingle() {
   ws.send(
     JSON.stringify({
       type: "single",
+    })
+  );
+}
+
+function handleAI() {
+  ws.send(
+    JSON.stringify({
+      type: "single:ai",
     })
   );
 }
@@ -125,6 +137,7 @@ ws.onmessage = (e) => {
     v-if="status == 0"
     :handle-enter="handleEnterRoom"
     :handle-single="handleSingle"
+    :handle-a-i="handleAI"
   />
   <div v-if="status == 1">
     <!--为动效预留空间-->

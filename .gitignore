@@ -15,6 +15,9 @@ dist-ssr
 coverage
 releases
 *.local
+__pycache__/
+*.pyc
+weights/
 
 /cypress/videos/
 /cypress/screenshots/

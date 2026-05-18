@@ -1,0 +1,183 @@
+import os
+import sys
+import time
+import argparse
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+import numpy as np
+import torch
+from torch import nn, optim
+
+from game import core
+from game.types import WIN_NONE, RED, GREEN, BOARD_SIZE
+from model.encoder import encode
+from model.network import PredatorNetwork
+from mcts.mcts import MCTS
+
+
+def play_game(network, device, mcts_iterations=400, temperature=1.0, game_idx=0):
+    game = core.init_game()
+    turn = GREEN
+    samples = []
+    steps = 0
+
+    while True:
+        steps += 1
+        mcts = MCTS(game, turn, network, device=device)
+        mcts.run(iterations=mcts_iterations)
+
+        encoded = encode(game, turn)
+        policy = mcts.get_policy(temperature=temperature)
+        samples.append((encoded, policy, turn))
+
+        move = mcts.select_move(temperature=temperature)
+        game = core.handle_request(game, move, turn)
+        turn = 5 - turn
+
+        if steps % 20 == 0:
+            print(f"    game {game_idx} step {steps} turn={5-turn} ...", flush=True)
+
+        winner = core.check_win(game["board"])
+        if winner != WIN_NONE:
+            print(f"    game {game_idx} done in {steps} steps, winner={winner}", flush=True)
+            break
+
+        if steps > 200:
+            print(f"    game {game_idx} timeout at {steps} steps", flush=True)
+            break
+
+    training_data = []
+    for encoded, policy, t in samples:
+        z = 1.0 if winner == t else -1.0
+        training_data.append((encoded, policy, z))
+
+    return training_data
+
+
+def prepare_batch(batch, device):
+    states = np.stack([s for s, _, _ in batch], axis=0)
+    states = torch.from_numpy(states).float().permute(0, 3, 1, 2).to(device)
+
+    target_policies = torch.from_numpy(
+        np.stack([p for _, p, _ in batch], axis=0)
+    ).float().to(device)
+
+    target_values = torch.tensor(
+        [z for _, _, z in batch], dtype=torch.float32, device=device
+    )
+
+    return states, target_policies, target_values
+
+
+def train_step(network, batch, optimizer, device):
+    states, target_policies, target_values = prepare_batch(batch, device)
+
+    optimizer.zero_grad()
+    policies, values = network(states)
+
+    policy_loss = -torch.mean(
+        torch.sum(target_policies * policies, dim=1)
+    )
+    value_loss = nn.MSELoss()(values.squeeze(1), target_values)
+    loss = policy_loss + value_loss
+
+    loss.backward()
+    optimizer.step()
+
+    return loss.item()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Predator Self-Play Training")
+    parser.add_argument("--games", type=int, default=200, help="Self-play games per cycle")
+    parser.add_argument("--iterations", type=int, default=200, help="MCTS iterations per move")
+    parser.add_argument("--epochs", type=int, default=10, help="Training epochs per cycle")
+    parser.add_argument("--batch-size", type=int, default=256)
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--save", type=str, default="weights/latest.pt",
+                        help="Path to save model weights")
+    parser.add_argument("--load", type=str, default=None,
+                        help="Path to load existing weights (auto-detected from --save if not set)")
+    parser.add_argument("--cycles", type=int, default=5,
+                        help="Number of self-play+train cycles")
+    parser.add_argument("--dataset-size", type=int, default=50000,
+                        help="Max training samples to keep (oldest dropped)")
+    args = parser.parse_args()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {device}")
+
+    network = PredatorNetwork(num_blocks=4, channels=32).to(device)
+    save_path = os.path.join(os.path.dirname(__file__), "..", args.save)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    # Auto-detect existing weights
+    load_path = args.load or args.save
+    if not os.path.exists(os.path.join(os.path.dirname(__file__), "..", load_path)):
+        load_path = None
+
+    if load_path:
+        full_path = os.path.join(os.path.dirname(__file__), "..", load_path)
+        print(f"Loading weights from {full_path}")
+        network.load(full_path, device)
+    else:
+        print("Starting with random weights")
+
+    optimizer = optim.Adam(network.parameters(), lr=args.lr)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
+
+    for cycle in range(args.cycles):
+        print(f"\n{'='*50}")
+        print(f"Cycle {cycle + 1}/{args.cycles} "
+              f"(lr={optimizer.param_groups[0]['lr']:.6f})")
+        print(f"{'='*50}")
+
+        # Self-play: fresh dataset per cycle (old data from weaker play discarded)
+        dataset = []
+        for g in range(args.games):
+            t0 = time.time()
+            data = play_game(network, device,
+                             mcts_iterations=args.iterations,
+                             temperature=1.0,
+                             game_idx=g + 1)
+            dataset.extend(data)
+
+            t = time.time() - t0
+            print(f"  Game {g + 1}/{args.games} ({len(data)} moves, {t:.1f}s) "
+                  f"total_samples={len(dataset)}", flush=True)
+
+            # Save after each game so crashes don't lose progress
+            network.save(save_path)
+
+        # Cap dataset
+        if len(dataset) > args.dataset_size:
+            dataset = dataset[-args.dataset_size:]
+
+        # Train
+        print(f"\nTraining on {len(dataset)} samples...")
+        for epoch in range(args.epochs):
+            np.random.shuffle(dataset)
+            total_loss = 0
+            batches = 0
+
+            for i in range(0, len(dataset), args.batch_size):
+                batch = dataset[i:i + args.batch_size]
+                loss = train_step(network, batch, optimizer, device)
+                total_loss += loss
+                batches += 1
+
+            avg_loss = total_loss / batches
+            print(f"  Epoch {epoch + 1}/{args.epochs}  loss={avg_loss:.4f}")
+
+        scheduler.step()
+
+        # Save
+        network.save(save_path)
+        print(f"Saved weights to {save_path}")
+
+    print("\nTraining complete!")
+
+
+if __name__ == "__main__":
+    main()
