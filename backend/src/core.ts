@@ -17,6 +17,9 @@ import {
   ERR_SURROUNDED_BASE_CAMP,
   ZERO_POSITION,
   ERR_FIX_BASE_CAMP,
+  WIN_NONE,
+  WIN_RED,
+  WIN_GREEN,
 } from "./types";
 
 export function initGame(width: number, height: number): Game {
@@ -175,6 +178,12 @@ export function handleRequest(
     }
   }
   return { board, frozen };
+}
+
+export function checkWin(board: Board): number {
+  if (board[0][0][0] !== RED) return WIN_GREEN;
+  if (board[board.length - 1][board[0].length - 1][0] !== GREEN) return WIN_RED;
+  return WIN_NONE;
 }
 
 export function getCamp(board: Board, turn: Turn): Position {

@@ -60,3 +60,7 @@ export const updateTurnEvent = Symbol("updateTurnEvent");
 export const updateMessageEvent = Symbol("updateMessageEvent");
 
 export type Level = "info" | "warn" | "error" | "input";
+
+export const WIN_NONE = 0;
+export const WIN_RED = 1;
+export const WIN_GREEN = 2;

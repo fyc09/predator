@@ -26,6 +26,7 @@ const info: Ref<{
   names: string[];
   single: boolean;
   ai: boolean;
+  ai_battle: boolean;
   humanTurn: Turn;
 }> = ref({
   name: "",
@@ -35,6 +36,7 @@ const info: Ref<{
   names: [""],
   single: false,
   ai: false,
+  ai_battle: false,
   humanTurn: RED,
 });
 
@@ -69,6 +71,14 @@ function handleAI() {
   ws.send(
     JSON.stringify({
       type: "single:ai",
+    })
+  );
+}
+
+function handleAIBattle() {
+  ws.send(
+    JSON.stringify({
+      type: "single:ai_battle",
     })
   );
 }
@@ -138,6 +148,7 @@ ws.onmessage = (e) => {
     :handle-enter="handleEnterRoom"
     :handle-single="handleSingle"
     :handle-a-i="handleAI"
+    :handle-a-i-battle="handleAIBattle"
   />
   <div v-if="status == 1">
     <!--为动效预留空间-->

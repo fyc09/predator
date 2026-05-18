@@ -3,7 +3,7 @@ import EventEmitter from "events";
 import express from "express";
 import expressWs from "express-ws";
 import ws from "ws";
-import { copyGame, handleRequest, initGame } from "./core";
+import { copyGame, handleRequest, initGame, checkWin } from "./core";
 import { renderGame } from "./renderer";
 import {
   Game,
@@ -17,6 +17,9 @@ import {
   updateTurnEvent,
   updateMessageEvent,
   Level,
+  WIN_NONE,
+  WIN_RED,
+  WIN_GREEN,
 } from "./types";
 import debug from "debug";
 import { AIBridge } from "./ai/bridge";
@@ -185,6 +188,139 @@ class AIRoom extends Room {
       });
     }
     log("AI room CLOSED");
+  }
+}
+
+class AIBattleRoom extends Room {
+  user: AIBattle;
+  running: boolean;
+  moveDelay: number;
+  moveCount: number;
+  maxMoves: number;
+
+  constructor(moveDelay = 200) {
+    log("AI battle room CREATING");
+    super("ai_battle");
+    this.running = false;
+    this.moveDelay = moveDelay;
+    this.moveCount = 0;
+    this.maxMoves = 500;
+    this.on(updateDataEvent, this._updateData);
+    this.on(updateTurnEvent, this._updateTurn);
+    log("AI battle room CREATED");
+  }
+
+  addUser(connection: Connection): User {
+    log("connection %s -> AI battle room ...", connection);
+    let user = new AIBattle(connection, this);
+    this.user = user;
+
+    user.sendMessage("status", 2);
+    user.sendMessage("info", { single: true, ai_battle: true });
+
+    this.emit(updateDataEvent);
+
+    setImmediate(() => this.startBattle());
+
+    log("connection %s -> AI battle room OK", connection);
+    return user;
+  }
+
+  async startBattle(): Promise<void> {
+    if (!aiBridge.connected) {
+      log("AI bridge not connected");
+      this.user.sendMessage("chat", {
+        name: "系统",
+        message: "AI 服务未连接，请先启动 Python AI 服务",
+      });
+      return;
+    }
+
+    log("AI battle started");
+    this.running = true;
+
+    while (this.running && this.moveCount < this.maxMoves) {
+      const winner = checkWin(this.game.board);
+      if (winner !== WIN_NONE) {
+        const name = winner === WIN_RED ? "红方" : "绿方";
+        log("AI battle over, %s wins", name);
+        this.user.sendMessage("chat", {
+          name: "系统",
+          message: `${name}获胜！共 ${this.moveCount} 步`,
+        });
+        break;
+      }
+
+      try {
+        const move = await aiBridge.getMove(
+          this.game.board,
+          this.game.frozen,
+          this.currentTurn
+        );
+
+        if (!move) {
+          this.user.sendMessage("chat", {
+            name: "系统",
+            message: "无合法走法，游戏结束",
+          });
+          break;
+        }
+
+        const result = handleRequest(copyGame(this.game), move, this.currentTurn);
+        if (typeof result === "number") {
+          this.moveCount++;
+          continue;
+        }
+
+        this.game = result;
+        this.currentTurn = 5 - this.currentTurn;
+        this.moveCount++;
+        this.emit(updateDataEvent);
+      } catch (err) {
+        this.user.sendMessage("chat", {
+          name: "系统",
+          message: `AI 出错: ${(err as Error).message}`,
+        });
+        break;
+      }
+
+      await new Promise((r) => setTimeout(r, this.moveDelay));
+    }
+
+    if (this.moveCount >= this.maxMoves) {
+      this.user.sendMessage("chat", {
+        name: "系统",
+        message: `达到最大步数(${this.maxMoves})，平局`,
+      });
+    }
+
+    this.running = false;
+    log("AI battle ended, total moves: %d", this.moveCount);
+  }
+
+  stop(): void {
+    this.running = false;
+  }
+
+  _updateData() {
+    if (this.user) {
+      this.user.sendMessage(
+        "data",
+        renderGame(this.game, PUBLIC, this.currentTurn)
+      );
+    }
+  }
+
+  _updateTurn() {
+    if (this.user) {
+      this.user.sendMessage("info", { currentTurn: this.currentTurn });
+    }
+  }
+
+  close(): void {
+    log("AI battle room CLOSING");
+    this.stop();
+    log("AI battle room CLOSED");
   }
 }
 
@@ -520,6 +656,16 @@ class AISingle extends User {
   }
 }
 
+class AIBattle extends User {
+  constructor(connection: Connection, room: Room) {
+    super("", connection, room);
+  }
+  handleClick(x: number, y: number): void {}
+  handleExit(): void {
+    (this.room as AIBattleRoom).stop();
+  }
+}
+
 class Player extends User {
   turn: Turn;
 
@@ -805,6 +951,11 @@ class Connection {
 
       case "single:ai":
         this.room = new AIRoom();
+        this.user = this.room.addUser(this);
+        break;
+
+      case "single:ai_battle":
+        this.room = new AIBattleRoom();
         this.user = this.room.addUser(this);
         break;
 

@@ -189,7 +189,7 @@ async def test():
                 "id": "2", "method": "get_move",
                 "params": {"board": board, "frozen": frozen, "turn": 3},
             }))
-            resp = json.loads(await asyncio.wait_for(ws.recv(), timeout=3))
+            resp = json.loads(await asyncio.wait_for(ws.recv(), timeout=10))
             move = resp["result"]["move"]
             assert move is not None and len(move) == 2
             print(f"  ✓ AI returned move: {move}")

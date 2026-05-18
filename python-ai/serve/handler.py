@@ -26,7 +26,7 @@ async def handle(method, params):
 
         if _use_mcts and _network is not None:
             move, winrates = mcts_ai.get_move(
-                game, turn, _network, device=_device, iterations=800
+                game, turn, _network, device=_device, iterations=200
             )
             return {"move": move, "winrates": winrates}
         else:

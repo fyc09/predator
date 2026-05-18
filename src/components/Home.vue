@@ -5,6 +5,7 @@ const props = defineProps<{
   handleEnter: (room: string) => void;
   handleSingle: () => void;
   handleAI: () => void;
+  handleAIBattle: () => void;
 }>();
 
 const room: Ref<string> = ref("");
@@ -19,6 +20,10 @@ function onSingle() {
 
 function onAI() {
   props.handleAI();
+}
+
+function onAIBattle() {
+  props.handleAIBattle();
 }
 </script>
 
@@ -37,5 +42,6 @@ function onAI() {
     <br />
     <button @click.prevent="onSingle">单机模式</button>
     <button @click.prevent="onAI">人机模式</button>
+    <button @click.prevent="onAIBattle">AI 对战</button>
   </div>
 </template>
