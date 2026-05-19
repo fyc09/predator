@@ -40,7 +40,7 @@ class Room extends EventEmitter {
 
   constructor(roomId: string) {
     super();
-    this.game = initGame(11, 11);
+    this.game = initGame(5, 5);
     this.currentTurn = GREEN;
   }
 

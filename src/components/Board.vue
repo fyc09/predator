@@ -48,7 +48,7 @@ function onLeave(_x: number, _y: number) {
     </tr>
     <tr>
       <td
-        colspan="11"
+        colspan="5"
         :class="[classes[currentTurn]]"
         :style="{ textAlign: 'center' }"
       >

@@ -68,7 +68,7 @@ export class AIBridge {
     });
   }
 
-  async request(method: string, params: any = {}, timeoutMs = 10000): Promise<any> {
+  async request(method: string, params: any = {}, timeoutMs = 30000): Promise<any> {
     if (!this._connected || !this.ws) {
       throw new Error("AI bridge not connected");
     }
