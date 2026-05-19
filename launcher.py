@@ -63,6 +63,12 @@ def wait_proc(proc, timeout=1):
         return False
 
 
+def make_env():
+    env = os.environ.copy()
+    env["DEBUG"] = "*"
+    return env
+
+
 def main():
     processes = []
 
@@ -82,6 +88,7 @@ def main():
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            env=make_env(),
         )
         processes.append(p_python)
         t = threading.Thread(
@@ -117,6 +124,7 @@ def main():
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            env=make_env(),
         )
         processes.append(p_node)
         t = threading.Thread(
