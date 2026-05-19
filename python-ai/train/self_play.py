@@ -172,7 +172,7 @@ def main():
         print(f"{'='*50}")
 
         # Self-play: fresh dataset per cycle (old data from weaker play discarded)
-        n_workers = args.workers if args.workers > 0 else cpu_count()
+        n_workers = args.workers if args.workers > 0 else max(1, cpu_count() - 2)
         n_workers = min(n_workers, args.games)
         print(f"  Self-play with {n_workers} workers...")
 
