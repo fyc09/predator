@@ -32,6 +32,7 @@ def run_phase(name, *args):
         log_f.write(f"\n{'='*60}\nPHASE: {name}\nCMD: {' '.join(cmd)}\n{'='*60}\n")
         log_f.flush()
 
+        env = {**os.environ, "CUDA_VISIBLE_DEVICES": ""}
         proc = subprocess.Popen(
             cmd,
             cwd=BASE_DIR,
@@ -39,6 +40,7 @@ def run_phase(name, *args):
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            env=env,
         )
 
         for line in iter(proc.stdout.readline, ""):
