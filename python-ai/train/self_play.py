@@ -17,7 +17,8 @@ from model.network import PredatorNetwork
 from mcts.mcts import MCTS
 
 
-def play_game(network, device, mcts_iterations=400, temperature=1.0, game_idx=0):
+def play_game(network, device, mcts_iterations=400, temperature=1.0,
+              game_idx=0, eval_mode="heuristic"):
     game = core.init_game()
     turn = GREEN
     samples = []
@@ -25,7 +26,8 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0, game_idx=0)
 
     while True:
         steps += 1
-        mcts = MCTS(game, turn, network, device=device)
+        mcts = MCTS(game, turn, network=network, device=device,
+                    eval_mode=eval_mode)
         mcts.run(iterations=mcts_iterations)
 
         encoded = encode(game, turn)
@@ -57,14 +59,14 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0, game_idx=0)
 
 
 def _play_worker(args):
-    state_dict, device_str, mcts_iterations, temperature, game_idx = args
+    state_dict, device_str, mcts_iterations, temperature, game_idx, eval_mode = args
     import torch
     from model.network import PredatorNetwork
     net = PredatorNetwork(num_blocks=4, channels=32)
     net.load_state_dict(state_dict)
     net.eval()
     device = torch.device(device_str)
-    return play_game(net, device, mcts_iterations, temperature, game_idx)
+    return play_game(net, device, mcts_iterations, temperature, game_idx, eval_mode)
 
 
 def prepare_batch(batch, device):
@@ -115,6 +117,9 @@ def main():
                         help="Number of self-play+train cycles")
     parser.add_argument("--workers", type=int, default=0,
                         help="Number of parallel self-play workers (0 = auto = cpu_count)")
+    parser.add_argument("--eval-mode", choices=["nn", "heuristic"],
+                        default="heuristic",
+                        help="MCTS eval mode for self-play: nn or heuristic")
     parser.add_argument("--dataset-size", type=int, default=50000,
                         help="Max training samples to keep (oldest dropped)")
     args = parser.parse_args()
@@ -153,7 +158,8 @@ def main():
         print(f"  Self-play with {n_workers} workers...")
 
         worker_args = [
-            (network.state_dict(), str(device), args.iterations, 1.0, g + 1)
+            (network.state_dict(), str(device), args.iterations, 1.0,
+             g + 1, args.eval_mode)
             for g in range(args.games)
         ]
 
