@@ -118,9 +118,18 @@ class MCTS:
                 v = heuristic_value(g, turn)
                 x, y = m
                 if game["board"][x][y][0] == opp:
-                    v += 0.3  # ATTACK bonus
-                    if (x, y) == core.get_camp(game["board"], opp):
-                        v += 1.0  # attacking base camp
+                    camp_opp = core.get_camp(game["board"], opp)
+                    camp_own = core.get_camp(game["board"], turn)
+                    h = len(game["board"])
+                    w = len(game["board"][0])
+                    d_opp = abs(x - camp_opp[0]) + abs(y - camp_opp[1])
+                    d_own = abs(x - camp_own[0]) + abs(y - camp_own[1])
+                    close = min(d_opp, d_own)
+                    half = (h + w) / 2
+                    bonus = max(0, (half - close) / half) * 0.5
+                    v += bonus
+                    if (x, y) == camp_opp:
+                        v += 1.0
                 scores.append(max(v + 1.0, 0.01))
             policy = np.zeros(BOARD_SIZE * BOARD_SIZE, dtype=np.float32)
             for (x, y), s in zip(legal_moves, scores):
