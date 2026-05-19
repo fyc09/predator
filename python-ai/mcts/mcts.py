@@ -119,6 +119,8 @@ class MCTS:
                 x, y = m
                 if game["board"][x][y][0] == opp:
                     v += 0.3  # ATTACK bonus
+                    if (x, y) == core.get_camp(game["board"], opp):
+                        v += 1.0  # attacking base camp
                 scores.append(max(v + 1.0, 0.01))
             policy = np.zeros(BOARD_SIZE * BOARD_SIZE, dtype=np.float32)
             for (x, y), s in zip(legal_moves, scores):

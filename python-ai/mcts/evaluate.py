@@ -45,10 +45,16 @@ def heuristic_value(game, turn):
     adj_to_target = sum(1 for x, y in own_cells if is_adjacent((x, y), camp_opp))
     adj_to_my_base = sum(1 for x, y in opp_cells if is_adjacent((x, y), camp_own))
 
+    attacking_base = any(
+        is_adjacent((x, y), camp_opp) and board[x][y][0] == own
+        for x, y in own_cells
+    )
+
     raw = (-dist_to_target * 0.6
            + dist_from_target * 0.3
            + territory * 1.0
            + mobility * 0.3
            + adj_to_target * 2.0
-           - adj_to_my_base * 1.0)
+           - adj_to_my_base * 1.0
+           + attacking_base * 3.0)
     return math.tanh(raw / (max_dist * 0.4))
