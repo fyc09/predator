@@ -18,7 +18,7 @@ from mcts.mcts import MCTS
 
 
 def play_game(network, device, mcts_iterations=400, temperature=1.0,
-              game_idx=0, eval_mode="heuristic"):
+              game_idx=0, eval_mode="heuristic", step_limit=200):
     game = core.init_game()
     turn = GREEN
     samples = []
@@ -46,9 +46,9 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0,
             print(f"    game {game_idx} done in {steps} steps, winner={winner}", flush=True)
             break
 
-        if steps > 200:
+        if steps > step_limit:
             winner = 0  # draw
-            print(f"    game {game_idx} timeout at {steps} steps, draw", flush=True)
+            print(f"    game {game_idx} timeout at {steps} steps (limit={step_limit}), draw", flush=True)
             break
 
     training_data = []
@@ -63,14 +63,16 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0,
 
 
 def _play_worker(args):
-    state_dict, device_str, mcts_iterations, temperature, game_idx, eval_mode = args
+    (state_dict, device_str, mcts_iterations, temperature,
+     game_idx, eval_mode, step_limit) = args
     import torch
     from model.network import PredatorNetwork
     net = PredatorNetwork(num_blocks=4, channels=32)
     net.load_state_dict(state_dict)
     net.eval()
     device = torch.device(device_str)
-    return play_game(net, device, mcts_iterations, temperature, game_idx, eval_mode)
+    return play_game(net, device, mcts_iterations, temperature,
+                     game_idx, eval_mode, step_limit)
 
 
 def prepare_batch(batch, device):
@@ -124,6 +126,8 @@ def main():
     parser.add_argument("--eval-mode", choices=["nn", "heuristic"],
                         default="heuristic",
                         help="MCTS eval mode for self-play: nn or heuristic")
+    parser.add_argument("--step-limit", type=int, default=200,
+                        help="Max steps per game before draw (curriculum: start small, increase)")
     parser.add_argument("--dataset-size", type=int, default=50000,
                         help="Max training samples to keep (oldest dropped)")
     args = parser.parse_args()
@@ -153,7 +157,8 @@ def main():
     for cycle in range(args.cycles):
         print(f"\n{'='*50}")
         print(f"Cycle {cycle + 1}/{args.cycles} "
-              f"(lr={optimizer.param_groups[0]['lr']:.6f})")
+              f"(lr={optimizer.param_groups[0]['lr']:.6f}, "
+              f"step_limit={args.step_limit})")
         print(f"{'='*50}")
 
         # Self-play: fresh dataset per cycle (old data from weaker play discarded)
@@ -163,7 +168,7 @@ def main():
 
         worker_args = [
             (network.state_dict(), str(device), args.iterations, 1.0,
-             g + 1, args.eval_mode)
+             g + 1, args.eval_mode, args.step_limit)
             for g in range(args.games)
         ]
 
