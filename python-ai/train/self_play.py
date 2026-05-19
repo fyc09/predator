@@ -18,7 +18,7 @@ from mcts.mcts import MCTS
 
 
 def play_game(network, device, mcts_iterations=400, temperature=1.0,
-              game_idx=0, eval_mode="heuristic", step_limit=200):
+              game_idx=0, eval_mode="heuristic", step_limit=200, explore=0.25):
     game = core.init_game()
     turn = GREEN
     samples = []
@@ -27,7 +27,7 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0,
     while True:
         steps += 1
         mcts = MCTS(game, turn, network=network, device=device,
-                    eval_mode=eval_mode)
+                    eval_mode=eval_mode, explore=explore)
         mcts.run(iterations=mcts_iterations)
 
         encoded = encode(game, turn)
@@ -64,7 +64,7 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0,
 
 def _play_worker(args):
     (state_dict, device_str, mcts_iterations, temperature,
-     game_idx, eval_mode, step_limit) = args
+     game_idx, eval_mode, step_limit, explore) = args
     import torch
     from model.network import PredatorNetwork
     net = PredatorNetwork(num_blocks=4, channels=32)
@@ -72,7 +72,7 @@ def _play_worker(args):
     net.eval()
     device = torch.device(device_str)
     return play_game(net, device, mcts_iterations, temperature,
-                     game_idx, eval_mode, step_limit)
+                     game_idx, eval_mode, step_limit, explore)
 
 
 def prepare_batch(batch, device):
@@ -128,6 +128,8 @@ def main():
                         help="MCTS eval mode for self-play: nn or heuristic")
     parser.add_argument("--step-limit", type=int, default=200,
                         help="Max steps per game before draw (curriculum: start small, increase)")
+    parser.add_argument("--explore", type=float, default=0.25,
+                        help="Dirichlet noise at root for exploration (0=disabled)")
     parser.add_argument("--dataset-size", type=int, default=50000,
                         help="Max training samples to keep (oldest dropped)")
     args = parser.parse_args()
@@ -158,7 +160,7 @@ def main():
         print(f"\n{'='*50}")
         print(f"Cycle {cycle + 1}/{args.cycles} "
               f"(lr={optimizer.param_groups[0]['lr']:.6f}, "
-              f"step_limit={args.step_limit})")
+              f"step_limit={args.step_limit}, explore={args.explore})")
         print(f"{'='*50}")
 
         # Self-play: fresh dataset per cycle (old data from weaker play discarded)
@@ -168,7 +170,7 @@ def main():
 
         worker_args = [
             (network.state_dict(), str(device), args.iterations, 1.0,
-             g + 1, args.eval_mode, args.step_limit)
+             g + 1, args.eval_mode, args.step_limit, args.explore)
             for g in range(args.games)
         ]
 

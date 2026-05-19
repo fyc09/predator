@@ -95,11 +95,12 @@ def _valid_moves(game, turn):
 
 class MCTS:
     def __init__(self, game, turn, network=None, device="cpu", c_puct=1.5,
-                 eval_mode="nn"):
+                 eval_mode="nn", explore=0.0):
         self.network = network
         self.device = device
         self.c_puct = c_puct
         self.eval_mode = eval_mode
+        self.explore = explore
 
         self._root_game = core.copy_game(game)
         self._root_turn = turn
@@ -134,6 +135,16 @@ class MCTS:
         policy, value = self._evaluate(self._root_game, self._root_turn, legal)
 
         masked = mask_policy(policy, legal)
+
+        if self.explore > 0:
+            alpha = 0.3
+            noise = np.random.dirichlet([alpha] * len(legal))
+            for i, m in enumerate(legal):
+                x, y = m
+                idx = x * BOARD_SIZE + y
+                masked[idx] = (1 - self.explore) * masked[idx] + self.explore * noise[i]
+            masked /= masked.sum()
+
         self.root.expand(legal, masked)
         self.root.total_value += value
 
