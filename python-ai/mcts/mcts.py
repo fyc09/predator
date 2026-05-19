@@ -2,7 +2,7 @@ import math
 import numpy as np
 
 from game import core
-from game.types import WIN_NONE, BOARD_SIZE
+from game.types import WIN_NONE, BOARD_SIZE, RED, GREEN
 from model import encoder
 from .evaluate import heuristic_value
 
@@ -111,10 +111,14 @@ class MCTS:
     def _evaluate(self, game, turn, legal_moves):
         if self.eval_mode == "heuristic":
             value = heuristic_value(game, turn)
+            opp = RED if turn == GREEN else GREEN
             scores = []
             for m in legal_moves:
                 g = core.handle_request(core.copy_game(game), m, turn)
                 v = heuristic_value(g, turn)
+                x, y = m
+                if game["board"][x][y][0] == opp:
+                    v += 0.3  # ATTACK bonus
                 scores.append(max(v + 1.0, 0.01))
             policy = np.zeros(BOARD_SIZE * BOARD_SIZE, dtype=np.float32)
             for (x, y), s in zip(legal_moves, scores):

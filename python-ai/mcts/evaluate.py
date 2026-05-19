@@ -1,7 +1,10 @@
 import math
-import numpy as np
-from game.types import RED, GREEN, BOARD_SIZE
+from game.types import RED, GREEN
 from game.core import get_camp, get_legal_moves
+
+
+def is_adjacent(a, b):
+    return max(abs(a[0] - b[0]), abs(a[1] - b[1])) == 1
 
 
 def heuristic_value(game, turn):
@@ -39,8 +42,13 @@ def heuristic_value(game, turn):
     opp_mobility = len(get_legal_moves(game, opp))
     mobility = my_mobility - opp_mobility
 
-    raw = (-dist_to_target * 0.8
-           + dist_from_target * 0.4
-           + territory * 0.3
-           + mobility * 0.3)
+    adj_to_target = sum(1 for x, y in own_cells if is_adjacent((x, y), camp_opp))
+    adj_to_my_base = sum(1 for x, y in opp_cells if is_adjacent((x, y), camp_own))
+
+    raw = (-dist_to_target * 0.6
+           + dist_from_target * 0.3
+           + territory * 1.0
+           + mobility * 0.3
+           + adj_to_target * 2.0
+           - adj_to_my_base * 1.0)
     return math.tanh(raw / (max_dist * 0.4))
