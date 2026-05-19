@@ -51,6 +51,14 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0,
             print(f"    game {game_idx} timeout at {steps} steps (limit={step_limit}), draw", flush=True)
             break
 
+        # Check if any expansion move is still possible
+        legal_next = core.get_legal_moves(game, turn)
+        can_expand = any(game["board"][x][y][0] != turn for x, y in legal_next)
+        if not can_expand:
+            winner = 0  # draw - stuck, only HEAL left
+            print(f"    game {game_idx} stuck at {steps} steps, no expansion possible", flush=True)
+            break
+
     training_data = []
     for encoded, policy, t in samples:
         if winner == 0:
@@ -175,12 +183,20 @@ def main():
         ]
 
         dataset = []
-        with Pool(n_workers) as pool:
-            for g, data in enumerate(pool.imap_unordered(_play_worker, worker_args)):
+        pool = Pool(n_workers)
+        try:
+            it = pool.imap_unordered(_play_worker, worker_args)
+            for g, data in enumerate(it):
                 dataset.extend(data)
                 network.save(save_path)
                 print(f"  Game {g + 1}/{args.games} ({len(data)} moves) "
                       f"total_samples={len(dataset)}", flush=True)
+        except KeyboardInterrupt:
+            print("  [interrupt] stopping workers...", flush=True)
+            pool.terminate()
+        finally:
+            pool.close()
+            pool.join()
 
         # Cap dataset
         if len(dataset) > args.dataset_size:
