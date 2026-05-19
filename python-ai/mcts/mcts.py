@@ -2,9 +2,9 @@ import math
 import numpy as np
 
 from game import core
-from game.types import WIN_NONE
+from game.types import WIN_NONE, BOARD_SIZE
 from model import encoder
-from model.network import BOARD_SIZE
+from .evaluate import heuristic_value
 
 
 class Node:
@@ -94,16 +94,35 @@ def _valid_moves(game, turn):
 
 
 class MCTS:
-    def __init__(self, game, turn, network, device="cpu", c_puct=1.5):
+    def __init__(self, game, turn, network=None, device="cpu", c_puct=1.5,
+                 eval_mode="nn"):
         self.network = network
         self.device = device
         self.c_puct = c_puct
+        self.eval_mode = eval_mode
 
         self._root_game = core.copy_game(game)
         self._root_turn = turn
 
         self.root = Node(None)
         self._init_root()
+
+    def _evaluate(self, game, turn, legal_moves):
+        if self.eval_mode == "heuristic":
+            value = heuristic_value(game, turn)
+            scores = []
+            for m in legal_moves:
+                g = core.handle_request(core.copy_game(game), m, turn)
+                v = heuristic_value(g, turn)
+                scores.append(max(v + 1.0, 0.01))
+            policy = np.zeros(BOARD_SIZE * BOARD_SIZE, dtype=np.float32)
+            for (x, y), s in zip(legal_moves, scores):
+                policy[x * BOARD_SIZE + y] = s
+            policy /= policy.sum()
+            return policy, value
+        else:
+            encoded = encoder.encode(game, turn)
+            return self.network.predict(encoded, self.device)
 
     def _init_root(self):
         legal = _valid_moves(self._root_game, self._root_turn)
@@ -112,8 +131,7 @@ class MCTS:
             self.root.winner = core.check_win(self._root_game["board"])
             return
 
-        encoded = encoder.encode(self._root_game, self._root_turn)
-        policy, value = self.network.predict(encoded, self.device)
+        policy, value = self._evaluate(self._root_game, self._root_turn, legal)
 
         masked = mask_policy(policy, legal)
         self.root.expand(legal, masked)
@@ -152,8 +170,7 @@ class MCTS:
             node.backpropagate(self._terminal_value(node, turn))
             return
 
-        encoded = encoder.encode(game, turn)
-        policy, value = self.network.predict(encoded, self.device)
+        policy, value = self._evaluate(game, turn, legal)
 
         masked = mask_policy(policy, legal)
         node.expand(legal, masked)

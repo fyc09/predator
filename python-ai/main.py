@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import argparse
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -32,14 +33,19 @@ def load_network():
         return network, device
     else:
         print(f"[main] No weights found at {WEIGHTS_PATH}")
-        print(f"[main] Starting with random weights (AI will play poorly)")
-        print(f"[main] Run 'python -m train.self_play' to train")
+        print(f"[main] Starting with random weights")
         network.to(device)
         network.eval()
         return network, device
 
 
 async def async_main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--eval-mode", choices=["nn", "heuristic"],
+                        default="heuristic",
+                        help="nn=neural network (needs weights), heuristic=greedy distance-based")
+    args = parser.parse_args()
+
     loop = asyncio.get_running_loop()
     stop = loop.create_future()
 
@@ -54,10 +60,12 @@ async def async_main():
         pass
 
     print("=== Predator Python AI Service ===")
+    print(f"Eval mode: {args.eval_mode}")
 
     t0 = time.time()
     network, device = load_network()
     handler.set_network(network, device)
+    handler.set_eval_mode(args.eval_mode)
     t = time.time() - t0
 
     if torch.cuda.is_available():

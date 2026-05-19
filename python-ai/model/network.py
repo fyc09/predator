@@ -2,9 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from game.types import BOARD_SIZE
 from .encoder import NUM_CHANNELS
-
-BOARD_SIZE = 11
 
 
 class ResidualBlock(nn.Module):

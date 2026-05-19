@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import argparse
+from multiprocessing import Pool, cpu_count
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -55,6 +56,17 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0, game_idx=0)
     return training_data
 
 
+def _play_worker(args):
+    state_dict, device_str, mcts_iterations, temperature, game_idx = args
+    import torch
+    from model.network import PredatorNetwork
+    net = PredatorNetwork(num_blocks=4, channels=32)
+    net.load_state_dict(state_dict)
+    net.eval()
+    device = torch.device(device_str)
+    return play_game(net, device, mcts_iterations, temperature, game_idx)
+
+
 def prepare_batch(batch, device):
     states = np.stack([s for s, _, _ in batch], axis=0)
     states = torch.from_numpy(states).float().permute(0, 3, 1, 2).to(device)
@@ -101,6 +113,8 @@ def main():
                         help="Path to load existing weights (auto-detected from --save if not set)")
     parser.add_argument("--cycles", type=int, default=5,
                         help="Number of self-play+train cycles")
+    parser.add_argument("--workers", type=int, default=0,
+                        help="Number of parallel self-play workers (0 = auto = cpu_count)")
     parser.add_argument("--dataset-size", type=int, default=50000,
                         help="Max training samples to keep (oldest dropped)")
     args = parser.parse_args()
@@ -134,21 +148,22 @@ def main():
         print(f"{'='*50}")
 
         # Self-play: fresh dataset per cycle (old data from weaker play discarded)
+        n_workers = args.workers if args.workers > 0 else cpu_count()
+        n_workers = min(n_workers, args.games)
+        print(f"  Self-play with {n_workers} workers...")
+
+        worker_args = [
+            (network.state_dict(), str(device), args.iterations, 1.0, g + 1)
+            for g in range(args.games)
+        ]
+
         dataset = []
-        for g in range(args.games):
-            t0 = time.time()
-            data = play_game(network, device,
-                             mcts_iterations=args.iterations,
-                             temperature=1.0,
-                             game_idx=g + 1)
-            dataset.extend(data)
-
-            t = time.time() - t0
-            print(f"  Game {g + 1}/{args.games} ({len(data)} moves, {t:.1f}s) "
-                  f"total_samples={len(dataset)}", flush=True)
-
-            # Save after each game so crashes don't lose progress
-            network.save(save_path)
+        with Pool(n_workers) as pool:
+            for g, data in enumerate(pool.imap_unordered(_play_worker, worker_args)):
+                dataset.extend(data)
+                network.save(save_path)
+                print(f"  Game {g + 1}/{args.games} ({len(data)} moves) "
+                      f"total_samples={len(dataset)}", flush=True)
 
         # Cap dataset
         if len(dataset) > args.dataset_size:
