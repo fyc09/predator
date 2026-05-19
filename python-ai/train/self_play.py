@@ -47,12 +47,16 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0,
             break
 
         if steps > 200:
-            print(f"    game {game_idx} timeout at {steps} steps", flush=True)
+            winner = 0  # draw
+            print(f"    game {game_idx} timeout at {steps} steps, draw", flush=True)
             break
 
     training_data = []
     for encoded, policy, t in samples:
-        z = 1.0 if winner == t else -1.0
+        if winner == 0:
+            z = 0.0
+        else:
+            z = 1.0 if winner == t else -1.0
         training_data.append((encoded, policy, z))
 
     return training_data
