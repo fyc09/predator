@@ -32,7 +32,6 @@ def run_phase(name, *args):
         log_f.write(f"\n{'='*60}\nPHASE: {name}\nCMD: {' '.join(cmd)}\n{'='*60}\n")
         log_f.flush()
 
-        env = {**os.environ, "CUDA_VISIBLE_DEVICES": ""}
         proc = subprocess.Popen(
             cmd,
             cwd=BASE_DIR,
@@ -40,7 +39,6 @@ def run_phase(name, *args):
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            env=env,
         )
 
         for line in iter(proc.stdout.readline, ""):
@@ -58,48 +56,55 @@ def run_phase(name, *args):
 
 
 def main():
+    device_arg = ["--device", "cpu"]
     phases = [
         ("1: heuristic 10 cycles",
          "--games", "30", "--iterations", "400", "--epochs", "30",
          "--batch-size", "64", "--step-limit", "100", "--cycles", "10",
          "--eval-mode", "heuristic", "--explore", "0.25",
          "--load", "weights/phase1.pt",
-         "--save", "weights/phase1.pt"),
+         "--save", "weights/phase1.pt",
+         *device_arg),
 
         ("2a: nn cycles 1-10",
          "--games", "50", "--iterations", "600", "--epochs", "30",
          "--batch-size", "64", "--step-limit", "200", "--cycles", "10",
          "--eval-mode", "nn", "--explore", "0.25",
          "--load", "weights/phase1.pt",
-         "--save", "weights/phase2_c10.pt"),
+         "--save", "weights/phase2_c10.pt",
+         *device_arg),
 
         ("2b: nn cycles 11-20",
          "--games", "50", "--iterations", "600", "--epochs", "30",
          "--batch-size", "64", "--step-limit", "200", "--cycles", "10",
          "--eval-mode", "nn", "--explore", "0.25",
          "--load", "weights/phase2_c10.pt",
-         "--save", "weights/phase2_c20.pt"),
+         "--save", "weights/phase2_c20.pt",
+         *device_arg),
 
         ("2c: nn cycles 21-30",
          "--games", "50", "--iterations", "600", "--epochs", "30",
          "--batch-size", "64", "--step-limit", "200", "--cycles", "10",
          "--eval-mode", "nn", "--explore", "0.25",
          "--load", "weights/phase2_c20.pt",
-         "--save", "weights/phase2_c30.pt"),
+         "--save", "weights/phase2_c30.pt",
+         *device_arg),
 
         ("2d: nn cycles 31-40",
          "--games", "50", "--iterations", "600", "--epochs", "30",
          "--batch-size", "64", "--step-limit", "200", "--cycles", "10",
          "--eval-mode", "nn", "--explore", "0.25",
          "--load", "weights/phase2_c30.pt",
-         "--save", "weights/phase2_c40.pt"),
+         "--save", "weights/phase2_c40.pt",
+         *device_arg),
 
         ("2e: nn cycles 41-50",
          "--games", "50", "--iterations", "600", "--epochs", "30",
          "--batch-size", "64", "--step-limit", "200", "--cycles", "10",
          "--eval-mode", "nn", "--explore", "0.25",
          "--load", "weights/phase2_c40.pt",
-         "--save", "weights/latest.pt"),
+         "--save", "weights/latest.pt",
+         *device_arg),
     ]
 
     log(f"Predator Training Pipeline")

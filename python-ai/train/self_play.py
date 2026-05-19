@@ -138,11 +138,16 @@ def main():
                         help="Max steps per game before draw (curriculum: start small, increase)")
     parser.add_argument("--explore", type=float, default=0.25,
                         help="Dirichlet noise at root for exploration (0=disabled)")
+    parser.add_argument("--device", type=str, default=None,
+                        help="Force device: cpu or cuda (auto-detect if not set)")
     parser.add_argument("--dataset-size", type=int, default=50000,
                         help="Max training samples to keep (oldest dropped)")
     args = parser.parse_args()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if args.device:
+        device = torch.device(args.device)
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
     network = PredatorNetwork(num_blocks=4, channels=32).to(device)
