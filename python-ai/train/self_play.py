@@ -153,9 +153,9 @@ def main():
         print(f"{'='*50}")
 
         # Self-play: fresh dataset per cycle (old data from weaker play discarded)
-        n_workers = 1 if device.type == "cuda" else (args.workers or cpu_count())
+        n_workers = args.workers if args.workers > 0 else cpu_count()
         n_workers = min(n_workers, args.games)
-        print(f"  Self-play with {n_workers} workers (device={device.type})...")
+        print(f"  Self-play with {n_workers} workers...")
 
         worker_args = [
             (network.state_dict(), str(device), args.iterations, 1.0,
