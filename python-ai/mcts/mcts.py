@@ -40,7 +40,7 @@ class Node:
         sqrt_parent = math.sqrt(self.visit_count)
 
         for move, child in self.children.items():
-            q = child.value
+            q = -child.value  # negate: child stores opponent's perspective
             u = c_puct * child.prior_prob * sqrt_parent / (1 + child.visit_count)
             score = q + u
             if score > best_score:
