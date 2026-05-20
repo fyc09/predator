@@ -78,7 +78,7 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0,
 def _play_worker(args):
     (state_dict, device_str, mcts_iterations, temperature,
      game_idx, eval_mode, step_limit, explore,
-     opponent_state) = args
+     opp_checkpoints) = args
     import torch
     from model.network import PredatorNetwork
     device = torch.device(device_str)
@@ -86,9 +86,10 @@ def _play_worker(args):
     net.load_state_dict(state_dict)
     net.eval()
     opp_net = None
-    if opponent_state is not None:
+    if opp_checkpoints and random.random() < 0.8:
+        opp_path = random.choice(opp_checkpoints)
         opp_net = PredatorNetwork(num_blocks=4, channels=32)
-        opp_net.load_state_dict(opponent_state)
+        opp_net.load(opp_path, device)
         opp_net.eval()
     return play_game(net, device, mcts_iterations, temperature,
                      game_idx, eval_mode, step_limit, explore,
@@ -203,23 +204,16 @@ def main():
         n_workers = min(n_workers, args.games)
         print(f"  Self-play with {n_workers} workers...")
 
-        # Select random opponent from historical checkpoints
-        opponent_state = None
+        # Pass historical checkpoints for per-game opponent selection
         weights_dir = os.path.dirname(save_path)
         checkpoints = sorted(glob.glob(os.path.join(weights_dir, "c*.pt")))
-        if len(checkpoints) >= 2 and random.random() < 0.8:
-            opp_path = random.choice(checkpoints[:-1])
-            opp_net = PredatorNetwork(num_blocks=4, channels=32)
-            opp_net.load(opp_path, device)
-            opponent_state = opp_net.state_dict()
-            print(f"  Opponent: {os.path.basename(opp_path)}")
-        else:
-            print(f"  Opponent: self")
+        opp_checkpoints = checkpoints[:-1] if len(checkpoints) >= 2 else []
+        print(f"  Historical opponents: {len(opp_checkpoints)} checkpoints available")
 
         worker_args = [
             (network.state_dict(), str(device), args.iterations, 1.0,
              g + 1, args.eval_mode, args.step_limit, args.explore,
-             opponent_state)
+             opp_checkpoints)
             for g in range(args.games)
         ]
 
