@@ -1,6 +1,8 @@
 import os
 import sys
 import time
+import random
+import glob
 import argparse
 from multiprocessing import Pool, cpu_count
 
@@ -18,15 +20,18 @@ from mcts.mcts import MCTS
 
 
 def play_game(network, device, mcts_iterations=400, temperature=1.0,
-              game_idx=0, eval_mode="heuristic", step_limit=200, explore=0.25):
+              game_idx=0, eval_mode="heuristic", step_limit=200, explore=0.25,
+              opponent_network=None):
     game = core.init_game()
     turn = GREEN
     samples = []
     steps = 0
+    opponent_side = random.choice([RED, GREEN]) if opponent_network else None
 
     while True:
         steps += 1
-        mcts = MCTS(game, turn, network=network, device=device,
+        current_net = opponent_network if turn == opponent_side else network
+        mcts = MCTS(game, turn, network=current_net, device=device,
                     eval_mode=eval_mode, explore=explore)
         mcts.run(iterations=mcts_iterations)
 
@@ -72,15 +77,22 @@ def play_game(network, device, mcts_iterations=400, temperature=1.0,
 
 def _play_worker(args):
     (state_dict, device_str, mcts_iterations, temperature,
-     game_idx, eval_mode, step_limit, explore) = args
+     game_idx, eval_mode, step_limit, explore,
+     opponent_state) = args
     import torch
     from model.network import PredatorNetwork
+    device = torch.device(device_str)
     net = PredatorNetwork(num_blocks=4, channels=32)
     net.load_state_dict(state_dict)
     net.eval()
-    device = torch.device(device_str)
+    opp_net = None
+    if opponent_state is not None:
+        opp_net = PredatorNetwork(num_blocks=4, channels=32)
+        opp_net.load_state_dict(opponent_state)
+        opp_net.eval()
     return play_game(net, device, mcts_iterations, temperature,
-                     game_idx, eval_mode, step_limit, explore)
+                     game_idx, eval_mode, step_limit, explore,
+                     opponent_network=opp_net)
 
 
 def prepare_batch(batch, device):
@@ -169,9 +181,17 @@ def main():
     optimizer = optim.Adam(network.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
 
+    # Find next cycle number from existing checkpoints
+    existing = sorted(glob.glob(os.path.join(os.path.dirname(save_path), "c*.pt")))
+    start_cycle = max(
+        (int(os.path.splitext(os.path.basename(f))[0][1:]) for f in existing),
+        default=0
+    )
+
     for cycle in range(args.cycles):
+        cycle_num = start_cycle + cycle + 1
         print(f"\n{'='*50}")
-        print(f"Cycle {cycle + 1}/{args.cycles} "
+        print(f"Cycle {cycle_num} / {start_cycle + args.cycles} "
               f"(lr={optimizer.param_groups[0]['lr']:.6f}, "
               f"step_limit={args.step_limit}, explore={args.explore})")
         print(f"{'='*50}")
@@ -183,9 +203,23 @@ def main():
         n_workers = min(n_workers, args.games)
         print(f"  Self-play with {n_workers} workers...")
 
+        # Select random opponent from historical checkpoints
+        opponent_state = None
+        weights_dir = os.path.dirname(save_path)
+        checkpoints = sorted(glob.glob(os.path.join(weights_dir, "c*.pt")))
+        if len(checkpoints) >= 2 and random.random() < 0.8:
+            opp_path = random.choice(checkpoints[:-1])
+            opp_net = PredatorNetwork(num_blocks=4, channels=32)
+            opp_net.load(opp_path, device)
+            opponent_state = opp_net.state_dict()
+            print(f"  Opponent: {os.path.basename(opp_path)}")
+        else:
+            print(f"  Opponent: self")
+
         worker_args = [
             (network.state_dict(), str(device), args.iterations, 1.0,
-             g + 1, args.eval_mode, args.step_limit, args.explore)
+             g + 1, args.eval_mode, args.step_limit, args.explore,
+             opponent_state)
             for g in range(args.games)
         ]
 
@@ -229,7 +263,11 @@ def main():
 
         # Save
         network.save(save_path)
-        print(f"Saved weights to {save_path}")
+        cycle_path = os.path.join(
+            os.path.dirname(save_path), f"c{cycle_num:03d}.pt"
+        )
+        network.save(cycle_path)
+        print(f"Saved weights to {save_path} and {cycle_path}")
 
     print("\nTraining complete!")
 
