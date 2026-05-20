@@ -87,12 +87,18 @@ export class AIBridge {
     });
   }
 
+  async listModels(): Promise<string[]> {
+    const result = await this.request("list_models");
+    return result;
+  }
+
   async getMove(
     board: any[][],
     frozen: number[][],
-    turn: number
+    turn: number,
+    model?: string
   ): Promise<[number, number] | null> {
-    const result = await this.request("get_move", { board, frozen, turn });
+    const result = await this.request("get_move", { board, frozen, turn, model });
     return result.move;
   }
 

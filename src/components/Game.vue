@@ -39,6 +39,8 @@ const info: Ref<{
   ai_battle: false,
   humanTurn: RED,
 });
+const modelsList: Ref<string[]> = ref([]);
+const showModelSelect: Ref<boolean> = ref(false);
 
 function handleMouseDown(x: number, y: number) {
   ws.send(
@@ -78,7 +80,18 @@ function handleAI() {
 function handleAIBattle() {
   ws.send(
     JSON.stringify({
-      type: "single:ai_battle",
+      type: "list_models",
+    })
+  );
+  showModelSelect.value = true;
+}
+
+function handleAIBattleModels(red: string, green: string) {
+  ws.send(
+    JSON.stringify({
+      type: "ai_battle",
+      red,
+      green,
     })
   );
 }
@@ -137,6 +150,10 @@ ws.onmessage = (e) => {
         // @ts-ignore
         info.value[key] = message.data[key];
       }
+      break;
+    case "models":
+      modelsList.value = message.data;
+      break;
   }
 };
 </script>
@@ -149,6 +166,9 @@ ws.onmessage = (e) => {
     :handle-single="handleSingle"
     :handle-a-i="handleAI"
     :handle-a-i-battle="handleAIBattle"
+    :handle-a-i-battle-models="handleAIBattleModels"
+    :models="modelsList"
+    :show-model-select="showModelSelect"
   />
   <div v-if="status == 1">
     <!--为动效预留空间-->

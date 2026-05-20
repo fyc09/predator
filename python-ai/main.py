@@ -13,37 +13,13 @@ import signal
 import torch
 from serve.server import start
 from serve import handler
-from model.network import PredatorNetwork
-
-WEIGHTS_PATH = os.path.join(os.path.dirname(__file__), "weights", "latest.pt")
-
-
-def load_network():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[main] Device: {device}")
-
-    network = PredatorNetwork(num_blocks=4, channels=32)
-
-    if os.path.exists(WEIGHTS_PATH):
-        print(f"[main] Loading weights from {WEIGHTS_PATH}")
-        network.load(WEIGHTS_PATH, device)
-        network.to(device)
-        network.eval()
-        print("[main] Network loaded successfully")
-        return network, device
-    else:
-        print(f"[main] No weights found at {WEIGHTS_PATH}")
-        print(f"[main] Starting with random weights")
-        network.to(device)
-        network.eval()
-        return network, device
 
 
 async def async_main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--eval-mode", choices=["nn", "heuristic"],
                         default="heuristic",
-                        help="nn=neural network (needs weights), heuristic=greedy distance-based")
+                        help="nn=neural network, heuristic=distance-based")
     args = parser.parse_args()
 
     loop = asyncio.get_running_loop()
@@ -60,19 +36,14 @@ async def async_main():
         pass
 
     print("=== Predator Python AI Service ===")
-    print(f"Eval mode: {args.eval_mode}")
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     t0 = time.time()
-    network, device = load_network()
-    handler.set_network(network, device)
-    handler.set_eval_mode(args.eval_mode)
+    handler.load_weights(device)
     t = time.time() - t0
 
-    if torch.cuda.is_available():
-        print(f"[main] Using CUDA GPU (load time: {t:.1f}s)")
-    else:
-        print(f"[main] Using CPU (load time: {t:.1f}s)")
-
+    print(f"[main] Device: {device}  (load time: {t:.1f}s)")
+    print(f"[main] Models: {handler.list_models()}")
     print("[main] Listening on ws://localhost:5000")
     print("==================================")
 

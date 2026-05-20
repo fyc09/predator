@@ -197,14 +197,18 @@ class AIBattleRoom extends Room {
   moveDelay: number;
   moveCount: number;
   maxMoves: number;
+  redModel: string;
+  greenModel: string;
 
-  constructor(moveDelay = 200) {
+  constructor(redModel = "latest", greenModel = "latest", moveDelay = 200) {
     log("AI battle room CREATING");
     super("ai_battle");
     this.running = false;
     this.moveDelay = moveDelay;
     this.moveCount = 0;
     this.maxMoves = 500;
+    this.redModel = redModel;
+    this.greenModel = greenModel;
     this.on(updateDataEvent, this._updateData);
     this.on(updateTurnEvent, this._updateTurn);
     log("AI battle room CREATED");
@@ -216,7 +220,7 @@ class AIBattleRoom extends Room {
     this.user = user;
 
     user.sendMessage("status", 2);
-    user.sendMessage("info", { single: true, ai_battle: true });
+    user.sendMessage("info", { single: true, ai_battle: true, redModel: this.redModel, greenModel: this.greenModel });
 
     this.emit(updateDataEvent);
 
@@ -236,7 +240,7 @@ class AIBattleRoom extends Room {
       return;
     }
 
-    log("AI battle started");
+    log("AI battle started: red=%s green=%s", this.redModel, this.greenModel);
     this.running = true;
 
     while (this.running && this.moveCount < this.maxMoves) {
@@ -252,10 +256,12 @@ class AIBattleRoom extends Room {
       }
 
       try {
+        const model = this.currentTurn === RED ? this.redModel : this.greenModel;
         const move = await aiBridge.getMove(
           this.game.board,
           this.game.frozen,
-          this.currentTurn
+          this.currentTurn,
+          model
         );
 
         if (!move) {
@@ -954,8 +960,15 @@ class Connection {
         this.user = this.room.addUser(this);
         break;
 
-      case "single:ai_battle":
-        this.room = new AIBattleRoom();
+      case "list_models":
+        (async () => {
+          const models = await aiBridge.listModels();
+          this.ws.send(JSON.stringify({ type: "models", data: models }));
+        })();
+        break;
+
+      case "ai_battle":
+        this.room = new AIBattleRoom(data.red, data.green);
         this.user = this.room.addUser(this);
         break;
 

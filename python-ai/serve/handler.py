@@ -1,64 +1,52 @@
-from game import core
+import os
+import glob
 from ai import random as random_ai
 from ai import mcts_ai
+from model.network import PredatorNetwork
 
-_network = None
-_device = "cpu"
-_eval_mode = "nn"
-
-
-def set_network(network, device):
-    global _network, _device
-    _network = network
-    _device = device
+_models = {}
 
 
-def set_eval_mode(mode):
-    global _eval_mode
-    _eval_mode = mode
+def load_weights(device="cpu"):
+    weights_dir = os.path.join(os.path.dirname(__file__), "..", "weights")
+    for path in sorted(glob.glob(os.path.join(weights_dir, "*.pt"))):
+        name = os.path.splitext(os.path.basename(path))[0]
+        net = PredatorNetwork(num_blocks=4, channels=32)
+        net.load(path, device)
+        net.to(device)
+        net.eval()
+        _models[name] = (net, device, "nn")
+        print(f"[handler] loaded model '{name}'")
 
 
-def _call_mcts(game, turn, iterations=200):
-    if _eval_mode == "heuristic":
-        return mcts_ai.get_move(game, turn, eval_mode="heuristic")
-    elif _eval_mode == "nn" and _network is not None:
-        return mcts_ai.get_move(
-            game, turn, network=_network, device=_device,
-            iterations=iterations, eval_mode="nn",
-        )
-    else:
-        move = random_ai.get_move(game, turn)
-        return move, {}
+def list_models():
+    return sorted(_models.keys())
 
 
 async def handle(method, params):
     if method == "ping":
         return "pong"
 
+    if method == "list_models":
+        return list_models()
+
     if method == "get_move":
         turn = params["turn"]
         board = params["board"]
         frozen = params["frozen"]
+        model = params.get("model", "latest")
         game = {"board": board, "frozen": frozen}
 
-        move, winrates = _call_mcts(game, turn, iterations=200)
-        return {"move": move, "winrates": winrates}
-
-    if method == "get_winrates":
-        turn = params["turn"]
-        board = params["board"]
-        frozen = params["frozen"]
-        game = {"board": board, "frozen": frozen}
-
-        if _eval_mode == "heuristic":
-            winrates = mcts_ai.get_winrates(game, turn, eval_mode="heuristic")
-        elif _eval_mode == "nn" and _network is not None:
-            winrates = mcts_ai.get_winrates(
-                game, turn, network=_network, device=_device,
-                iterations=200, eval_mode="nn",
+        entry = _models.get(model)
+        if entry:
+            net, device, mode = entry
+            move, winrates = mcts_ai.get_move(
+                game, turn, network=net, device=device,
+                iterations=200, eval_mode=mode,
             )
         else:
-            winrates = random_ai.get_winrates(game, turn)
-        return {"winrates": winrates}
+            move = random_ai.get_move(game, turn)
+            winrates = {}
+        return {"move": move, "winrates": winrates}
 
     raise ValueError(f"Unknown method: {method}")
