@@ -1,6 +1,6 @@
-"""
-Predator 完整训练管线
-自动分阶段执行，日志写入文件
+﻿"""
+Predator 瀹屾暣璁粌绠＄嚎
+鑷姩鍒嗛樁娈垫墽琛岋紝鏃ュ織鍐欏叆鏂囦欢
 """
 import subprocess
 import sys
@@ -58,14 +58,6 @@ def run_phase(name, *args):
 def main():
     device_arg = ["--device", "cpu"]
     phases = [
-        ("1: heuristic 10 cycles",
-         "--games", "30", "--iterations", "400", "--epochs", "30",
-         "--batch-size", "64", "--step-limit", "100", "--cycles", "10",
-         "--eval-mode", "heuristic", "--explore", "0.1",
-         "--load", "weights/phase1.pt",
-         "--save", "weights/phase1.pt",
-         *device_arg),
-
         ("2a: nn cycles 1-10",
          "--games", "30", "--iterations", "600", "--epochs", "30",
          "--batch-size", "64", "--step-limit", "200", "--cycles", "30",
@@ -103,10 +95,10 @@ def main():
          "--batch-size", "64", "--step-limit", "200", "--cycles", "15",
          "--eval-mode", "nn", "--explore", "0.1",
          "--load", "weights/phase2_c40.pt",
-         "--save", "weights/phase2_c50",
+         "--save", "weights/phase2_c50.pt",
          *device_arg),
 
-        ("2e: nn cycles 51-60",
+        ("2f: nn cycles 51-60",
          "--games", "30", "--iterations", "600", "--epochs", "30",
          "--batch-size", "64", "--step-limit", "200", "--cycles", "15",
          "--eval-mode", "nn", "--explore", "0.1",
